@@ -51,7 +51,7 @@ const onAnalyze = (e: React.FormEvent) => {
     return;
   }
   const report = analyzeText(text);
-  navigate('/report', { state: { report: { ...report, copyleaks: { matches: 0 } }, text } });
+  navigate('/report', { state: { report: { ...report, copyleaks: { matches: 0 } }, text, file: selectedFile } });
 };
 
   return (

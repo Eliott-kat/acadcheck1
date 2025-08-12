@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "react-router-dom";
 import { useI18n } from "@/i18n";
 import HighlightedText from "@/components/HighlightedText";
+import { DocumentPreview } from "@/components/DocumentPreview";
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows.map(r => r.map(v => '"' + v.split('"').join('""') + '"').join(',')).join('\n');
@@ -20,6 +21,15 @@ const Report = () => {
   const location = useLocation() as { state?: any };
   const report = location.state?.report || { plagiarism: 0, aiScore: 0, sentences: [], copyleaks: { matches: 0 } };
   const text = location.state?.text || '';
+  const file: File | undefined = location.state?.file;
+
+  // Build highlight groups from sentence scores
+  const aiSentences = report.sentences?.filter((s: any) => s.ai >= 70).map((s: any) => s.sentence) || [];
+  const plgSentences = report.sentences?.filter((s: any) => s.plagiarism >= 50).map((s: any) => s.sentence) || [];
+  const groups = [
+    { terms: aiSentences, className: "mark-ai" },
+    { terms: plgSentences, className: "mark-plagiarism" },
+  ];
 
   return (
     <AppLayout>
@@ -51,17 +61,18 @@ const Report = () => {
           <Button onClick={() => downloadCsv('acadcheck_report.csv', [["Sentence","Plagiarism","AI","Source"], ...report.sentences.map((s: any) => [s.sentence, String(s.plagiarism), String(s.ai), s.source || ''])])} variant="outline">{t('report.exportCsv')}</Button>
         </div>
 
+        {file && (
+          <section className="p-6 rounded-lg border bg-card shadow-sm">
+            <h3 className="font-semibold mb-3">Document analysé (aperçu fidèle)</h3>
+            <DocumentPreview file={file} highlights={groups} />
+          </section>
+        )}
+
         <section className="p-6 rounded-lg border bg-card shadow-sm">
           <h3 className="font-semibold mb-3">{t('report.highlights')}</h3>
           <div className="prose max-w-none">
             {report.sentences.length ? (
-              <p>
-                {report.sentences.map((s: any, i: number) => (
-                  <span key={i} className="px-1 rounded-sm" style={{ backgroundColor: `hsl(${s.plagiarism > 60 ? '0 84% 60% / 0.15' : s.ai > 60 ? '48 96% 53% / 0.15' : '221 83% 53% / 0.09'})` }}>
-                    {s.sentence} {" "}
-                  </span>
-                ))}
-              </p>
+              <HighlightedText text={text} groups={groups} />
             ) : (
               <p className="text-muted-foreground">{text}</p>
             )}

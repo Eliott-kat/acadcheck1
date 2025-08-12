@@ -1,24 +1,103 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-// Optional styles can be added locally if needed for DOCX rendering
+import HighlightedText from "@/components/HighlightedText";
+
+export interface HighlightGroup {
+  terms: string[];
+  className: string;
+}
 
 export interface DocumentPreviewProps {
   file: File;
   className?: string;
+  highlights?: HighlightGroup[];
 }
 
-export const DocumentPreview = ({ file, className }: DocumentPreviewProps) => {
+export const DocumentPreview = ({ file, className, highlights }: DocumentPreviewProps) => {
   const ext = useMemo(() => (file.name.split(".").pop() || "").toLowerCase(), [file]);
   const [txt, setTxt] = useState<string>("");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Cleanup any previous URL
     return () => {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     };
   }, [pdfUrl]);
+
+  // Apply highlights inside DOCX-rendered HTML
+  const applyHighlightsToContainer = (container: HTMLElement) => {
+    if (!highlights || highlights.length === 0) return;
+
+    // Remove previous marks from our runs
+    container.querySelectorAll('mark[data-hl="1"]').forEach((el) => {
+      const parent = el.parentNode as Node | null;
+      if (!parent) return;
+      // unwrap mark
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    });
+
+    const tokens = highlights
+      .flatMap((g) => (g.terms || []).map((t) => t?.trim()).filter(Boolean).map((t) => ({ term: t as string, className: g.className })))
+      .sort((a, b) => b.term.length - a.term.length);
+
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        // Skip inside links/marks
+        const p = node.parentElement;
+        if (!p) return NodeFilter.FILTER_REJECT;
+        if (p.closest('mark[data-hl="1"]')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+
+    const nodes: Text[] = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+
+    for (const textNode of nodes) {
+      const original = textNode.nodeValue || "";
+      const lower = original.toLowerCase();
+      let cursor = 0;
+      const parts: (string | { s: number; e: number; cls: string })[] = [];
+
+      // Greedy find earliest match repeatedly
+      while (cursor < lower.length) {
+        let best:
+          | { start: number; end: number; cls: string }
+          | null = null;
+        for (const tok of tokens) {
+          const idx = lower.indexOf(tok.term.toLowerCase(), cursor);
+          if (idx !== -1) {
+            const end = idx + tok.term.length;
+            if (!best || idx < best.start || (idx === best.start && tok.term.length > best.end - best.start)) {
+              best = { start: idx, end, cls: tok.className };
+            }
+          }
+        }
+        if (!best) break;
+        if (best.start > cursor) parts.push(original.slice(cursor, best.start));
+        parts.push({ s: best.start, e: best.end, cls: best.cls });
+        cursor = best.end;
+      }
+      if (parts.length === 0) continue;
+      if (cursor < original.length) parts.push(original.slice(cursor));
+
+      const frag = document.createDocumentFragment();
+      for (const p of parts) {
+        if (typeof p === "string") frag.appendChild(document.createTextNode(p));
+        else {
+          const m = document.createElement("mark");
+          m.setAttribute("data-hl", "1");
+          m.className = p.cls;
+          m.textContent = original.slice(p.s, p.e);
+          frag.appendChild(m);
+        }
+      }
+      textNode.parentNode?.replaceChild(frag, textNode);
+    }
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -26,7 +105,6 @@ export const DocumentPreview = ({ file, className }: DocumentPreviewProps) => {
         const url = URL.createObjectURL(file);
         setPdfUrl(url);
         setTxt("");
-        // Clear docx container if switching type
         if (docxContainerRef.current) docxContainerRef.current.innerHTML = "";
         return;
       }
@@ -41,6 +119,8 @@ export const DocumentPreview = ({ file, className }: DocumentPreviewProps) => {
           inWrapper: true,
           className: "docx-preview",
         });
+        // Apply highlights after render
+        if (docxContainerRef.current) applyHighlightsToContainer(docxContainerRef.current);
         return;
       }
       // txt and others fallback: show plain text
@@ -50,7 +130,11 @@ export const DocumentPreview = ({ file, className }: DocumentPreviewProps) => {
       if (docxContainerRef.current) docxContainerRef.current.innerHTML = "";
     };
     run();
-  }, [file, ext]);
+    // Re-apply highlights when highlights change for docx
+    if (ext === "docx" && docxContainerRef.current) {
+      applyHighlightsToContainer(docxContainerRef.current);
+    }
+  }, [file, ext, JSON.stringify(highlights)]);
 
   return (
     <div className={cn("w-full max-h-[32rem] overflow-auto", className)}>
@@ -67,7 +151,9 @@ export const DocumentPreview = ({ file, className }: DocumentPreviewProps) => {
       )}
 
       {ext === "txt" && txt && (
-        <pre className="whitespace-pre-wrap p-4 text-sm leading-relaxed">{txt}</pre>
+        <div className="p-4 text-sm leading-relaxed">
+          <HighlightedText text={txt} highlights={[]} groups={highlights} />
+        </div>
       )}
     </div>
   );

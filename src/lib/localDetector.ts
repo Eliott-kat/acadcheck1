@@ -18,7 +18,7 @@ const STOPWORDS = new Set([
 function splitSentences(text: string): string[] {
   return text
     .replace(/\s+/g, ' ')
-    .split(/(?<=[\.!?])\s+(?=[A-ZÀ-ÖØ-Þ])/)
+    .split(/(?<=[\.!?])\s+(?=[A-ZÀ-ÖØ-Þ]|\d|“|\(|\[)/)
     .map(s => s.trim())
     .filter(Boolean);
 }
@@ -79,33 +79,72 @@ export function analyzeText(text: string): LocalReport {
     (lengths.reduce((a, b) => a + Math.pow(b - meanLen, 2), 0) / (lengths.length || 1)) || 0.0001
   );
 
+  // Global repetition metrics (document-level burstiness/perplexity proxies)
+  const allWords = sentWords.flat();
+  const totalTokens = allWords.length || 1;
+  const unigramFreq: Record<string, number> = {};
+  const bigrams: string[] = [];
+  for (let i = 0; i < allWords.length; i++) {
+    unigramFreq[allWords[i]] = (unigramFreq[allWords[i]] || 0) + 1;
+    if (i < allWords.length - 1) bigrams.push(allWords[i] + ' ' + allWords[i + 1]);
+  }
+  const bigramFreq: Record<string, number> = {};
+  for (const bg of bigrams) bigramFreq[bg] = (bigramFreq[bg] || 0) + 1;
+  const repeatedBigrams = Object.values(bigramFreq).filter(v => v > 1).length;
+  const repBigramRatio = repeatedBigrams / Math.max(1, Object.keys(bigramFreq).length);
+
   // Precompute n-grams for plagiarism proxy (near-duplicate within doc)
   const triSets = sentWords.map(w => ngrams(w, 5)); // 5-grams
 
   const sentences: SentenceScore[] = sents.map((s, i) => {
     const ws = sentWords[i];
-    const ttr = uniqueRatio(ws); // lower can indicate AI
-    const stopR = stopwordRatio(ws); // mid-high for human
-    const awl = avgWordLen(ws); // higher can indicate formal/AI
-    const ent = charEntropy(s); // very mid-range can be AI-ish
+    const ttr = uniqueRatio(ws);
+    const stopR = stopwordRatio(ws);
+    const awl = avgWordLen(ws);
+    const ent = charEntropy(s);
 
-    // Burstiness proxy: similarity of length to mean (less bursty => more AI-like)
+    const puncts = (s.match(/[,:;\-—()\[\]“”"'…]/g) || []).length;
+    const digits = (s.match(/\d/g) || []).length;
+
+    // Sentence-level burstiness vs mean
     const burstSim = 1 - Math.min(1, Math.abs((ws.length - meanLen) / (stdLen || 1)));
 
-    // Heuristic AI score [0,100]
-    // We design feature scores in [0,1], then weight.
-    const ttrScore = 1 - ttr; // low ttr => more AI
-    const stopScore = Math.abs(stopR - 0.45); // far from 0.45 => more AI; invert below
-    const stopAdj = 1 - Math.min(1, stopScore / 0.45);
-    const awlScore = Math.min(1, Math.max(0, (awl - 4) / 4));
-    const entScore = 1 - Math.min(1, Math.abs(ent - 3.5) / 3.5); // center around ~3.5
+    // Token frequency concentration (lower => more human)
+    const tfc = ws.reduce((a, w) => a + (unigramFreq[w] || 0), 0) / Math.max(1, ws.length);
+    const tfcNorm = Math.min(1, (tfc - 1) / 5); // normalize
 
-    const ai01 =
-      0.32 * burstSim +
-      0.25 * ttrScore +
-      0.18 * stopAdj +
-      0.15 * awlScore +
-      0.10 * entScore;
+    // Repetition around sentence: share of bigrams that are repeated globally
+    let sentRepBigrams = 0, sentBigramsCount = 0;
+    for (let j = 0; j < ws.length - 1; j++) {
+      sentBigramsCount++;
+      if ((bigramFreq[ws[j] + ' ' + ws[j + 1]] || 0) > 1) sentRepBigrams++;
+    }
+    const sentRepRatio = sentBigramsCount ? sentRepBigrams / sentBigramsCount : 0;
+
+    // Feature engineering to [0,1]
+    const ttrScore = 1 - ttr; // low ttr => more AI
+    const stopMid = 1 - Math.min(1, Math.abs(stopR - 0.45) / 0.45);
+    const awlScore = Math.min(1, Math.max(0, (awl - 4) / 4));
+    const entScore = 1 - Math.min(1, Math.abs(ent - 3.5) / 3.5);
+    const punctScore = Math.min(1, puncts / 8); // few punctuation => AI-ish
+    const digitScore = Math.min(1, digits / 6); // many digits often human/technical => reduce AI score later
+    const repDocScore = repBigramRatio; // document repetition
+    const repSentScore = sentRepRatio;  // sentence repetition
+    const tfcScore = tfcNorm;           // token concentration
+
+    // Combine (weights tuned heuristically)
+    let ai01 =
+      0.22 * burstSim +
+      0.18 * ttrScore +
+      0.12 * stopMid +
+      0.12 * awlScore +
+      0.10 * entScore +
+      0.10 * repDocScore +
+      0.10 * repSentScore +
+      0.06 * punctScore;
+
+    // Reduce AI score if many digits (data-heavy sentence)
+    ai01 = Math.max(0, ai01 - 0.08 * digitScore);
 
     // Plagiarism proxy: overlap with any other sentence's 5-grams
     let plg = 0;
@@ -123,7 +162,6 @@ export function analyzeText(text: string): LocalReport {
   });
 
   const aiScore = Math.round(sentences.reduce((a, s) => a + s.ai, 0) / (sentences.length || 1));
-  // Overall plagiarism: 95th percentile of sentence-level
   const plgSorted = [...sentences].map(s => s.plagiarism).sort((a, b) => a - b);
   const idx95 = Math.floor(0.95 * (plgSorted.length - 1));
   const plagiarism = plgSorted.length ? plgSorted[idx95] : 0;

@@ -35,6 +35,9 @@ All colors MUST be HSL.
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
+    --warning: 48 96% 53%;
+    --warning-foreground: 26 83% 14%;
+
     --border: 214 31% 90%;
     --input: 214 31% 90%;
     --ring: 221 83% 53%;
@@ -82,6 +85,9 @@ All colors MUST be HSL.
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
+    --warning: 48 96% 53%;
+    --warning-foreground: 26 83% 14%;
+
     --border: 217 33% 18%;
     --input: 217 33% 18%;
     --ring: 221 83% 60%;
@@ -111,5 +117,22 @@ All colors MUST be HSL.
   /* Signature spotlight background following cursor (subtle) */
   .bg-spotlight {
     background-image: radial-gradient(600px 200px at var(--spot-x,50%) var(--spot-y,10%), hsl(var(--primary) / 0.12), transparent 60%);
+  }
+
+  .mark-ai {
+    background-color: hsl(var(--primary) / 0.20);
+    text-decoration-color: hsl(var(--primary));
+    text-decoration-line: underline;
+    text-decoration-thickness: 2px;
+    border-radius: 0.125rem;
+    padding: 0 0.125rem;
+  }
+  .mark-plagiarism {
+    background-color: hsl(var(--warning) / 0.35);
+    text-decoration-color: hsl(var(--warning));
+    text-decoration-line: underline;
+    text-decoration-thickness: 2px;
+    border-radius: 0.125rem;
+    padding: 0 0.125rem;
   }
 }

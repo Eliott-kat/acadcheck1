@@ -1,0 +1,13 @@
+/* Minimal fallback styles for docx-preview rendering
+   This is a lightweight subset to preserve layout, fonts, lists, tables. */
+.docx-wrapper { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.docx { line-height: 1.4; font-family: Georgia, Cambria, "Times New Roman", Times, serif; font-size: 12pt; }
+.docx p { margin: 0 0 0.8em 0; }
+.docx h1,.docx h2,.docx h3,.docx h4,.docx h5,.docx h6 { margin: 1em 0 0.5em; font-weight: 600; }
+.docx ul, .docx ol { margin: 0.6em 0 0.6em 1.2em; }
+.docx table { border-collapse: collapse; margin: 0.8em 0; }
+.docx td, .docx th { border: 1px solid hsl(var(--border)); padding: 4px 6px; }
+.docx a { color: hsl(var(--primary)); text-decoration: underline; }
+/* Highlight marks inside docx */
+.docx mark.mark-ai { background-color: hsl(var(--primary) / 0.20); }
+.docx mark.mark-plagiarism { background-color: hsl(var(--warning) / 0.35); }
