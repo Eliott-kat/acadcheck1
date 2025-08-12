@@ -12,6 +12,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Report from "./pages/Report";
 import Admin from "./pages/Admin";
+import LocalAnalyze from "./pages/LocalAnalyze";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/report" element={<Report />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/local-analyze" element={<LocalAnalyze />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
