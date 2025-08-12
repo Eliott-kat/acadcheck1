@@ -14,7 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analyses: {
+        Row: {
+          ai_score: number | null
+          copyleaks_result: Json | null
+          created_at: string
+          document_name: string | null
+          gptzero_result: Json | null
+          id: string
+          language: string | null
+          plagiarism_score: number | null
+          status: string
+          storage_path: string | null
+          text_length: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_score?: number | null
+          copyleaks_result?: Json | null
+          created_at?: string
+          document_name?: string | null
+          gptzero_result?: Json | null
+          id?: string
+          language?: string | null
+          plagiarism_score?: number | null
+          status?: string
+          storage_path?: string | null
+          text_length?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_score?: number | null
+          copyleaks_result?: Json | null
+          created_at?: string
+          document_name?: string | null
+          gptzero_result?: Json | null
+          id?: string
+          language?: string | null
+          plagiarism_score?: number | null
+          status?: string
+          storage_path?: string | null
+          text_length?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      analysis_sentences: {
+        Row: {
+          ai: number | null
+          analysis_id: string
+          bbox: Json | null
+          created_at: string
+          end_offset: number | null
+          id: string
+          idx: number
+          page: number | null
+          plagiarism: number | null
+          source_url: string | null
+          start_offset: number | null
+          text: string
+        }
+        Insert: {
+          ai?: number | null
+          analysis_id: string
+          bbox?: Json | null
+          created_at?: string
+          end_offset?: number | null
+          id?: string
+          idx: number
+          page?: number | null
+          plagiarism?: number | null
+          source_url?: string | null
+          start_offset?: number | null
+          text: string
+        }
+        Update: {
+          ai?: number | null
+          analysis_id?: string
+          bbox?: Json | null
+          created_at?: string
+          end_offset?: number | null
+          id?: string
+          idx?: number
+          page?: number | null
+          plagiarism?: number | null
+          source_url?: string | null
+          start_offset?: number | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_sentences_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
