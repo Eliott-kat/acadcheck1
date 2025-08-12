@@ -43,7 +43,7 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-const onAnalyze = (e: React.FormEvent) => {
+const onAnalyze = async (e: React.FormEvent) => {
   e.preventDefault();
   const text = pasted.trim();
   if (!text) {
@@ -51,6 +51,24 @@ const onAnalyze = (e: React.FormEvent) => {
     return;
   }
   const report = analyzeText(text);
+  // Enregistrer un résumé de l'analyse pour l'historique (RLS: user_id = auth.uid())
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (uid) {
+      await supabase.from('analyses').insert({
+        user_id: uid,
+        text_length: text.length,
+        ai_score: Math.round(report.aiScore ?? 0),
+        plagiarism_score: Math.round(report.plagiarism ?? 0),
+        document_name: selectedFile?.name ?? null,
+        language: 'fr',
+        status: 'completed'
+      });
+    }
+  } catch (err) {
+    console.error('Erreur lors de la sauvegarde de l\'analyse', err);
+  }
   navigate('/report', { state: { report: { ...report, copyleaks: { matches: 0 } }, text, file: selectedFile } });
 };
 

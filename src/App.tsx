@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Report from "./pages/Report";
 import Admin from "./pages/Admin";
 import LocalAnalyze from "./pages/LocalAnalyze";
+import History from "./pages/History";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/history" element={<History />} />
               <Route path="/report" element={<Report />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/local-analyze" element={<LocalAnalyze />} />

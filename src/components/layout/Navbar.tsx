@@ -36,6 +36,7 @@ const Navbar = () => {
           </Link>
           <div className="hidden md:flex items-center gap-1">
             <NavLink to="/dashboard" className={navLinkClass}>{t("nav.dashboard")}</NavLink>
+            <NavLink to="/history" className={navLinkClass}>Historique</NavLink>
             <NavLink to="/admin" className={navLinkClass}>{t("nav.admin")}</NavLink>
           </div>
         </div>
