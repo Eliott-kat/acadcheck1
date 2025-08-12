@@ -23,14 +23,34 @@ const Report = () => {
   const text = location.state?.text || '';
   const file: File | undefined = location.state?.file;
 
-  // Build highlight groups from sentence scores
-  const aiSentences = report.sentences?.filter((s: any) => s.ai >= 70).map((s: any) => s.sentence) || [];
-  const plgSentences = report.sentences?.filter((s: any) => s.plagiarism >= 50).map((s: any) => s.sentence) || [];
-  const groups = [
-    { terms: aiSentences, className: "mark-ai" },
-    { terms: plgSentences, className: "mark-plagiarism" },
-  ];
+  // Build highlight groups from sentence scores (adaptive thresholds)
+  const sentences = report.sentences || [];
+  const uniq = (arr: string[]) => Array.from(new Set((arr || []).filter(Boolean)));
 
+  // AI: prefer >=70, else >=50, else top 10% (at least 1)
+  let aiTerms = uniq(sentences.filter((s: any) => s.ai >= 70).map((s: any) => s.sentence));
+  if (aiTerms.length === 0) {
+    aiTerms = uniq(sentences.filter((s: any) => s.ai >= 50).map((s: any) => s.sentence));
+  }
+  if (aiTerms.length === 0 && sentences.length) {
+    const topCount = Math.max(1, Math.ceil(sentences.length * 0.1));
+    aiTerms = uniq([...sentences].sort((a: any, b: any) => b.ai - a.ai).slice(0, topCount).map((s: any) => s.sentence));
+  }
+
+  // Plagiarism: prefer >=50, else >=40, else top 10% (at least 1)
+  let plgTerms = uniq(sentences.filter((s: any) => s.plagiarism >= 50).map((s: any) => s.sentence));
+  if (plgTerms.length === 0) {
+    plgTerms = uniq(sentences.filter((s: any) => s.plagiarism >= 40).map((s: any) => s.sentence));
+  }
+  if (plgTerms.length === 0 && sentences.length) {
+    const topCount = Math.max(1, Math.ceil(sentences.length * 0.1));
+    plgTerms = uniq([...sentences].sort((a: any, b: any) => b.plagiarism - a.plagiarism).slice(0, topCount).map((s: any) => s.sentence));
+  }
+
+  const groups = [
+    { terms: aiTerms, className: "mark-ai" },
+    { terms: plgTerms, className: "mark-plagiarism" },
+  ];
   return (
     <AppLayout>
       <Helmet>
