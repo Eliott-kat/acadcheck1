@@ -113,26 +113,46 @@ export const DocumentPreview = ({ file, className, highlights }: DocumentPreview
         setTxt("");
         if (!docxContainerRef.current) return;
         docxContainerRef.current.innerHTML = "";
-        const { renderAsync } = await import("docx-preview");
-        const arrayBuffer = await file.arrayBuffer();
-        await renderAsync(arrayBuffer, docxContainerRef.current, undefined, {
-          inWrapper: true,
-          className: "docx-preview",
-        });
-        // Apply highlights after render
-        if (docxContainerRef.current) applyHighlightsToContainer(docxContainerRef.current);
+        try {
+          const { renderAsync } = await import("docx-preview");
+          const arrayBuffer = await file.arrayBuffer();
+          await renderAsync(arrayBuffer, docxContainerRef.current, undefined, {
+            inWrapper: true,
+            className: "docx-preview",
+          });
+          // Apply highlights after render
+          if (docxContainerRef.current) {
+            try { applyHighlightsToContainer(docxContainerRef.current); } catch (e) { console.error("HL apply error", e); }
+          }
+        } catch (err) {
+          console.error("DOCX render failed, fallback to text:", err);
+          try {
+            const { extractRawText } = await import("mammoth");
+            const arrayBuffer = await file.arrayBuffer();
+            const { value } = await extractRawText({ arrayBuffer });
+            setTxt(value || "");
+          } catch (e2) {
+            console.error("DOCX text fallback failed:", e2);
+            setTxt("(Impossible d'afficher ce DOCX)");
+          }
+        }
         return;
       }
       // txt and others fallback: show plain text
-      const content = await file.text();
-      setTxt(content);
+      try {
+        const content = await file.text();
+        setTxt(content);
+      } catch (e) {
+        console.error("Read text failed", e);
+        setTxt("");
+      }
       setPdfUrl(null);
       if (docxContainerRef.current) docxContainerRef.current.innerHTML = "";
     };
     run();
     // Re-apply highlights when highlights change for docx
     if (ext === "docx" && docxContainerRef.current) {
-      applyHighlightsToContainer(docxContainerRef.current);
+      try { applyHighlightsToContainer(docxContainerRef.current); } catch (e) { console.error("HL apply error", e); }
     }
   }, [file, ext, JSON.stringify(highlights)]);
 
