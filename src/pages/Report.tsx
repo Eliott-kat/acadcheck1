@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "react-router-dom";
 import { useI18n } from "@/i18n";
+import HighlightedText from "@/components/HighlightedText";
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows.map(r => r.map(v => '"' + v.split('"').join('""') + '"').join(',')).join('\n');
@@ -65,6 +66,16 @@ const Report = () => {
               <p className="text-muted-foreground">{text}</p>
             )}
           </div>
+        </section>
+
+        <section className="p-6 rounded-lg border bg-card shadow-sm">
+          <h3 className="font-semibold mb-3">Exemple de surlignage</h3>
+          <article className="prose max-w-none">
+            <HighlightedText
+              text={"Bonjour, ceci est un exemple de texte. L'algorithme surligne les mots choisis, même avec des ponctuations!"}
+              highlights={["exemple", "surligne", "ponctuations"]}
+            />
+          </article>
         </section>
       </div>
     </AppLayout>
