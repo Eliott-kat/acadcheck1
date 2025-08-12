@@ -10,14 +10,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { analyzeText } from "@/lib/localDetector";
 import { toast } from "@/components/ui/use-toast";
 import { fileToText } from "@/lib/fileToText";
+import { DocumentPreview } from "@/components/DocumentPreview";
 
 const Dashboard = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [pasted, setPasted] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const onFile = async (file?: File | null) => {
     if (!file) return;
+    setSelectedFile(file);
     try {
       const content = await fileToText(file);
       setPasted(content);
@@ -67,6 +70,14 @@ const onAnalyze = (e: React.FormEvent) => {
               <span className="text-muted-foreground text-sm">{t('dashboard.or')}</span>
               <Button type="submit" variant="hero">{t('dashboard.analyze')}</Button>
             </div>
+            {selectedFile && (
+              <div className="mt-2">
+                <h3 className="text-sm font-medium mb-2">Aperçu du document</h3>
+                <div className="border rounded-md bg-card overflow-hidden">
+                  <DocumentPreview file={selectedFile} />
+                </div>
+              </div>
+            )}
             <Textarea value={pasted} onChange={e => setPasted(e.target.value)} rows={8} placeholder={t('dashboard.paste')} />
           </form>
         </section>
