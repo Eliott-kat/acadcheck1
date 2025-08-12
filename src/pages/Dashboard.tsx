@@ -11,6 +11,7 @@ import { analyzeText } from "@/lib/localDetector";
 import { toast } from "@/components/ui/use-toast";
 import { fileToText } from "@/lib/fileToText";
 import { DocumentPreview } from "@/components/DocumentPreview";
+import { getAllDocuments } from "@/lib/corpusDB";
 
 const Dashboard = () => {
   const { t } = useI18n();
@@ -50,7 +51,8 @@ const onAnalyze = async (e: React.FormEvent) => {
     toast({ title: "Texte requis", description: "Collez un texte ou importez un .pdf, .docx ou .txt pour une analyse locale 100% hors ligne." });
     return;
   }
-  const report = analyzeText(text);
+  const docs = await getAllDocuments();
+  const report = analyzeText(text, { corpus: docs.map(d => ({ name: d.name, text: d.text })) });
   // Enregistrer un résumé de l'analyse pour l'historique (RLS: user_id = auth.uid())
   try {
     const { data: { session } } = await supabase.auth.getSession();

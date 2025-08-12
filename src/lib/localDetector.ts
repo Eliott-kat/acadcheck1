@@ -77,7 +77,11 @@ function ngrams(ws: string[], n: number): Set<string> {
   return res;
 }
 
-export function analyzeText(text: string): LocalReport {
+export function analyzeText(
+  text: string,
+  opts?: { corpus?: { name: string; text: string }[]; ngram?: number }
+): LocalReport {
+  const n = Math.max(3, Math.min(7, opts?.ngram ?? 5));
   const sents = splitSentences(text);
   const sentWords = sents.map(words);
   const lengths = sentWords.map(w => w.length);
@@ -88,7 +92,6 @@ export function analyzeText(text: string): LocalReport {
 
   // Global repetition metrics (document-level burstiness/perplexity proxies)
   const allWords = sentWords.flat();
-  const totalTokens = allWords.length || 1;
   const unigramFreq: Record<string, number> = {};
   const bigrams: string[] = [];
   for (let i = 0; i < allWords.length; i++) {
@@ -101,7 +104,11 @@ export function analyzeText(text: string): LocalReport {
   const repBigramRatio = repeatedBigrams / Math.max(1, Object.keys(bigramFreq).length);
 
   // Precompute n-grams for plagiarism proxy (near-duplicate within doc)
-  const triSets = sentWords.map(w => ngrams(w, 5)); // 5-grams
+  const gramSets = sentWords.map(w => ngrams(w, n));
+
+  // External corpus n-gram sets (computed once per document)
+  const corpus = opts?.corpus || [];
+  const corpusSets = corpus.map(d => ({ name: d.name, set: ngrams(words(d.text), n) }));
 
   const sentences: SentenceScore[] = sents.map((s, i) => {
     const ws = sentWords[i];
@@ -153,19 +160,38 @@ export function analyzeText(text: string): LocalReport {
     // Reduce AI score if many digits (data-heavy sentence)
     ai01 = Math.max(0, ai01 - 0.08 * digitScore);
 
-    // Plagiarism proxy: overlap with any other sentence's 5-grams
-    let plg = 0;
+    // Plagiarism proxy: overlap with any other sentence's n-grams (internal)
+    let plgInternal = 0;
     for (let j = 0; j < sents.length; j++) {
       if (j === i) continue;
-      const sim = jaccard(triSets[i], triSets[j]);
-      plg = Math.max(plg, sim);
-      if (plg > 0.9) break;
+      const sim = jaccard(gramSets[i], gramSets[j]);
+      plgInternal = Math.max(plgInternal, sim);
+      if (plgInternal > 0.98) break;
     }
+
+    // External plagiarism vs corpus (max Jaccard over docs)
+    let bestExt = 0;
+    let bestSource: string | undefined = undefined;
+    if (corpusSets.length) {
+      for (const cs of corpusSets) {
+        const sim = jaccard(gramSets[i], cs.set);
+        if (sim > bestExt) {
+          bestExt = sim;
+          bestSource = cs.name;
+        }
+        if (bestExt > 0.98) break;
+      }
+    }
+
+    const plg = Math.max(plgInternal, bestExt);
 
     const ai = Math.round(ai01 * 100);
     const plagiarism = Math.round(plg * 100);
 
-    return { sentence: s, ai, plagiarism };
+    // Only attach a source label if external similarity is meaningful
+    const source = bestExt >= 0.3 ? bestSource : undefined;
+
+    return { sentence: s, ai, plagiarism, source };
   });
 
   const aiScore = Math.round(sentences.reduce((a, s) => a + s.ai, 0) / (sentences.length || 1));

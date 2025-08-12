@@ -2,16 +2,22 @@ import { Helmet } from "react-helmet-async";
 import AppLayout from "@/components/layout/AppLayout";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { analyzeText } from "@/lib/localDetector";
 import { useNavigate } from "react-router-dom";
 import { fileToText } from "@/lib/fileToText";
 import { toast } from "@/components/ui/use-toast";
+import { addDocumentFromFile, countDocuments, getAllDocuments } from "@/lib/corpusDB";
 
 const LocalAnalyze = () => {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sourcesCount, setSourcesCount] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    countDocuments().then(setSourcesCount).catch(() => setSourcesCount(0));
+  }, []);
 
   const onFile = async (file?: File | null) => {
     if (!file) return;
@@ -25,17 +31,30 @@ const LocalAnalyze = () => {
     }
   };
 
+  const onAddSource = async (file?: File | null) => {
+    if (!file) return;
+    try {
+      await addDocumentFromFile(file);
+      const c = await countDocuments();
+      setSourcesCount(c);
+      toast({ title: "Source ajoutée", description: `${file.name} a été indexé(e) dans le corpus local.` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Échec ajout source", description: "Impossible d'indexer ce fichier.", variant: "destructive" });
+    }
+  };
+
   const onAnalyze = async () => {
     if (!text.trim()) return;
     setLoading(true);
     try {
-      const report = analyzeText(text);
+      const docs = await getAllDocuments();
+      const report = analyzeText(text, { corpus: docs.map(d => ({ name: d.name, text: d.text })) });
       navigate("/report", { state: { report: { ...report, copyleaks: { matches: 0 } }, text } });
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <AppLayout>
       <Helmet>
@@ -57,6 +76,17 @@ const LocalAnalyze = () => {
               <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files && onFile(e.target.files[0])} />
               <span className="px-3 py-2 rounded-md border bg-card">Choisir un fichier</span>
             </label>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">Corpus local (optionnel): ajoutez des sources pour le plagiat hors ligne</div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">Corpus: {sourcesCount} document(s)</span>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files && onAddSource(e.target.files[0])} />
+                <span className="px-3 py-2 rounded-md border bg-card">Ajouter au corpus</span>
+              </label>
+            </div>
           </div>
 
           <Textarea
