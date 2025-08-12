@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import "docx-preview/dist/docx-preview.css";
+// Optional styles can be added locally if needed for DOCX rendering
 
 export interface DocumentPreviewProps {
   file: File;
