@@ -50,6 +50,7 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({
 
   // Construire toutes les correspondances non chevauchantes
   type Match = { start: number; end: number; text: string; cls?: string };
+  const matches: Match[] = [];
   const used: boolean[] = Array(text.length).fill(false);
 
   for (const tok of tokens) {
