@@ -7,25 +7,24 @@ import { useI18n } from "@/i18n";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-
-function analyzeMock(text: string) {
-  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-  const results = sentences.map((s, i) => ({
-    sentence: s,
-    plagiarism: Math.round(((i * 17) % 100)),
-    ai: Math.round(((i * 29 + 13) % 100)),
-    source: i % 3 === 0 ? `https://source.example.com/doc/${i}` : null,
-  }));
-  const plagiarism = Math.round(results.reduce((a, r) => a + r.plagiarism, 0) / (results.length || 1));
-  const aiScore = Math.round(results.reduce((a, r) => a + r.ai, 0) / (results.length || 1));
-  return { sentences: results, plagiarism, aiScore, copyleaks: { matches: results.filter(r => r.source).length } };
-}
+import { analyzeText } from "@/lib/localDetector";
+import { toast } from "@/components/ui/use-toast";
 
 const Dashboard = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [pasted, setPasted] = useState("");
 
+  const onFile = async (file?: File | null) => {
+    if (!file) return;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext !== "txt") {
+      toast({ title: "Format non supporté", description: "Veuillez importer un fichier .txt pour l'analyse locale." });
+      return;
+    }
+    const content = await file.text();
+    setPasted(content);
+  };
   // Protect route: redirect to login if not authenticated
   useEffect(() => {
     const check = async () => {
@@ -39,12 +38,16 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const onAnalyze = (e: React.FormEvent) => {
-    e.preventDefault();
-    const demoText = pasted.trim() || "This is a demo sentence. Another sentence that might be flagged. AI-like phrasing occurs here.";
-    const report = analyzeMock(demoText);
-    navigate('/report', { state: { report, text: demoText } });
-  };
+const onAnalyze = (e: React.FormEvent) => {
+  e.preventDefault();
+  const text = pasted.trim();
+  if (!text) {
+    toast({ title: "Texte requis", description: "Collez un texte ou importez un .txt pour une analyse locale 100% hors ligne." });
+    return;
+  }
+  const report = analyzeText(text);
+  navigate('/report', { state: { report: { ...report, copyleaks: { matches: 0 } }, text } });
+};
 
   return (
     <AppLayout>
@@ -58,7 +61,7 @@ const Dashboard = () => {
           <p className="text-sm text-muted-foreground mb-4">{t('dashboard.subtitle')}</p>
           <form onSubmit={onAnalyze} className="space-y-4">
             <div className="flex items-center gap-2">
-              <Input type="file" accept=".pdf,.docx,.txt" aria-label={t('dashboard.upload')} />
+              <Input type="file" accept=".txt" aria-label={t('dashboard.upload')} onChange={(e) => e.target.files && onFile(e.target.files[0])} />
               <span className="text-muted-foreground text-sm">{t('dashboard.or')}</span>
               <Button type="submit" variant="hero">{t('dashboard.analyze')}</Button>
             </div>
@@ -69,7 +72,7 @@ const Dashboard = () => {
           <h2 className="font-semibold mb-2">Aide</h2>
           <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
             <li>Les fichiers seront envoyés à une fonction Edge pour Copyleaks / GPTZero.</li>
-            <li>Le texte collé permet un essai rapide (simulation locale).</li>
+            <li>Le texte collé déclenche une analyse locale 100% hors ligne.</li>
             <li>Historique et rôles à connecter via Supabase.</li>
           </ul>
         </section>
