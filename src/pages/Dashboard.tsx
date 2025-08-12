@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeText } from "@/lib/localDetector";
 import { toast } from "@/components/ui/use-toast";
+import { fileToText } from "@/lib/fileToText";
 
 const Dashboard = () => {
   const { t } = useI18n();
@@ -17,13 +18,14 @@ const Dashboard = () => {
 
   const onFile = async (file?: File | null) => {
     if (!file) return;
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext !== "txt") {
-      toast({ title: "Format non supporté", description: "Veuillez importer un fichier .txt pour l'analyse locale." });
-      return;
+    try {
+      const content = await fileToText(file);
+      setPasted(content);
+      toast({ title: "Fichier importé", description: `Texte extrait de ${file.name}` });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Format non supporté", description: "Importez un .pdf, .docx ou .txt.", variant: "destructive" });
     }
-    const content = await file.text();
-    setPasted(content);
   };
   // Protect route: redirect to login if not authenticated
   useEffect(() => {
@@ -42,7 +44,7 @@ const onAnalyze = (e: React.FormEvent) => {
   e.preventDefault();
   const text = pasted.trim();
   if (!text) {
-    toast({ title: "Texte requis", description: "Collez un texte ou importez un .txt pour une analyse locale 100% hors ligne." });
+    toast({ title: "Texte requis", description: "Collez un texte ou importez un .pdf, .docx ou .txt pour une analyse locale 100% hors ligne." });
     return;
   }
   const report = analyzeText(text);
@@ -61,7 +63,7 @@ const onAnalyze = (e: React.FormEvent) => {
           <p className="text-sm text-muted-foreground mb-4">{t('dashboard.subtitle')}</p>
           <form onSubmit={onAnalyze} className="space-y-4">
             <div className="flex items-center gap-2">
-              <Input type="file" accept=".txt" aria-label={t('dashboard.upload')} onChange={(e) => e.target.files && onFile(e.target.files[0])} />
+              <Input type="file" accept=".pdf,.docx,.txt" aria-label={t('dashboard.upload')} onChange={(e) => e.target.files && onFile(e.target.files[0])} />
               <span className="text-muted-foreground text-sm">{t('dashboard.or')}</span>
               <Button type="submit" variant="hero">{t('dashboard.analyze')}</Button>
             </div>

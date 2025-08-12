@@ -5,20 +5,24 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { analyzeText } from "@/lib/localDetector";
 import { useNavigate } from "react-router-dom";
+import { fileToText } from "@/lib/fileToText";
+import { toast } from "@/components/ui/use-toast";
 
 const LocalAnalyze = () => {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const onFile = async (file: File) => {
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext !== "txt") {
-      alert("Veuillez fournir un fichier .txt pour l'analyse locale.");
-      return;
+  const onFile = async (file?: File | null) => {
+    if (!file) return;
+    try {
+      const content = await fileToText(file);
+      setText(content);
+      toast({ title: "Fichier importé", description: `Texte extrait de ${file.name}` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Format non supporté", description: "Importez un .pdf, .docx ou .txt.", variant: "destructive" });
     }
-    const content = await file.text();
-    setText(content);
   };
 
   const onAnalyze = async () => {
@@ -48,9 +52,9 @@ const LocalAnalyze = () => {
       <main>
         <section className="grid gap-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm text-muted-foreground">Optionnel: importer un fichier .txt</div>
+            <div className="text-sm text-muted-foreground">Optionnel: importer un fichier .pdf, .docx ou .txt</div>
             <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input type="file" accept=".txt" className="hidden" onChange={(e) => e.target.files && onFile(e.target.files[0])} />
+              <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={(e) => e.target.files && onFile(e.target.files[0])} />
               <span className="px-3 py-2 rounded-md border bg-card">Choisir un fichier</span>
             </label>
           </div>
