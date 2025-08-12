@@ -25,7 +25,7 @@ export const DocumentPreview = ({ file, className, highlights }: DocumentPreview
     };
   }, [pdfUrl]);
 
-  // Apply highlights inside DOCX-rendered HTML
+  // Apply highlights inside DOCX-rendered HTML, scoped per paragraph to avoid layout issues
   const applyHighlightsToContainer = (container: HTMLElement) => {
     if (!highlights || highlights.length === 0) return;
 
@@ -42,60 +42,74 @@ export const DocumentPreview = ({ file, className, highlights }: DocumentPreview
       .flatMap((g) => (g.terms || []).map((t) => t?.trim()).filter(Boolean).map((t) => ({ term: t as string, className: g.className })))
       .sort((a, b) => b.term.length - a.term.length);
 
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => {
-        if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-        // Skip inside links/marks
-        const p = node.parentElement;
-        if (!p) return NodeFilter.FILTER_REJECT;
-        if (p.closest('mark[data-hl="1"]')) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
-      },
-    });
+    // Limit processing to paragraph-like containers for stability and performance
+    const paragraphs = Array.from(container.querySelectorAll('p')) as HTMLElement[];
+    let processedNodes = 0;
 
-    const nodes: Text[] = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+    const processElement = (rootEl: HTMLElement) => {
+      const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          const p = (node as Text).parentElement;
+          if (!p) return NodeFilter.FILTER_REJECT;
+          if (p.closest('mark[data-hl="1"]')) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
 
-    for (const textNode of nodes) {
-      const original = textNode.nodeValue || "";
-      const lower = original.toLowerCase();
-      let cursor = 0;
-      const parts: (string | { s: number; e: number; cls: string })[] = [];
+      const nodes: Text[] = [];
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode as Text);
+        processedNodes++;
+        if (processedNodes > 20000) break; // hard safety cap
+      }
 
-      // Greedy find earliest match repeatedly
-      while (cursor < lower.length) {
-        let best:
-          | { start: number; end: number; cls: string }
-          | null = null;
-        for (const tok of tokens) {
-          const idx = lower.indexOf(tok.term.toLowerCase(), cursor);
-          if (idx !== -1) {
-            const end = idx + tok.term.length;
-            if (!best || idx < best.start || (idx === best.start && tok.term.length > best.end - best.start)) {
-              best = { start: idx, end, cls: tok.className };
+      for (const textNode of nodes) {
+        const original = textNode.nodeValue || "";
+        const lower = original.toLowerCase();
+        let cursor = 0;
+        const parts: (string | { s: number; e: number; cls: string })[] = [];
+
+        // Greedy find earliest match repeatedly
+        while (cursor < lower.length) {
+          let best: { start: number; end: number; cls: string } | null = null;
+          for (const tok of tokens) {
+            const idx = lower.indexOf(tok.term.toLowerCase(), cursor);
+            if (idx !== -1) {
+              const end = idx + tok.term.length;
+              if (!best || idx < best.start || (idx === best.start && tok.term.length > best.end - best.start)) {
+                best = { start: idx, end, cls: tok.className };
+              }
             }
           }
+          if (!best) break;
+          if (best.start > cursor) parts.push(original.slice(cursor, best.start));
+          parts.push({ s: best.start, e: best.end, cls: best.cls });
+          cursor = best.end;
         }
-        if (!best) break;
-        if (best.start > cursor) parts.push(original.slice(cursor, best.start));
-        parts.push({ s: best.start, e: best.end, cls: best.cls });
-        cursor = best.end;
-      }
-      if (parts.length === 0) continue;
-      if (cursor < original.length) parts.push(original.slice(cursor));
+        if (parts.length === 0) continue;
+        if (cursor < original.length) parts.push(original.slice(cursor));
 
-      const frag = document.createDocumentFragment();
-      for (const p of parts) {
-        if (typeof p === "string") frag.appendChild(document.createTextNode(p));
-        else {
-          const m = document.createElement("mark");
-          m.setAttribute("data-hl", "1");
-          m.className = p.cls;
-          m.textContent = original.slice(p.s, p.e);
-          frag.appendChild(m);
+        const frag = document.createDocumentFragment();
+        for (const p of parts) {
+          if (typeof p === "string") frag.appendChild(document.createTextNode(p));
+          else {
+            const m = document.createElement("mark");
+            m.setAttribute("data-hl", "1");
+            m.className = p.cls;
+            m.textContent = original.slice(p.s, p.e);
+            frag.appendChild(m);
+          }
         }
+        textNode.parentNode?.replaceChild(frag, textNode);
       }
-      textNode.parentNode?.replaceChild(frag, textNode);
+    };
+
+    // Process only visible paragraphs for performance
+    const limit = Math.max(50, Math.ceil(paragraphs.length * 1.0));
+    for (let i = 0; i < Math.min(paragraphs.length, limit); i++) {
+      processElement(paragraphs[i]);
+      if (processedNodes > 20000) break;
     }
   };
 
