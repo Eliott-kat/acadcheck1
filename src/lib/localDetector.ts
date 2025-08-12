@@ -16,15 +16,22 @@ const STOPWORDS = new Set([
 ]);
 
 function splitSentences(text: string): string[] {
-  return text
-    .replace(/\s+/g, ' ')
-    .split(/(?<=[\.!?])\s+(?=[A-ZÀ-ÖØ-Þ]|\d|“|\(|\[)/)
+  // Avoid regex lookbehind for Safari compatibility: insert a splitter token after end punctuation
+  const withDelims = text.replace(/([.!?])\s+(?=[A-ZÀ-ÖØ-Þ]|\d|“|\(|\[)/g, '$1|');
+  return withDelims
+    .split('|')
     .map(s => s.trim())
     .filter(Boolean);
 }
 
 function words(sentence: string): string[] {
-  return sentence.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? [];
+  try {
+    const re = new RegExp("[\\p{L}\\p{N}']+", "gu");
+    return sentence.toLowerCase().match(re) ?? [];
+  } catch {
+    // Fallback for engines without Unicode property escapes
+    return sentence.toLowerCase().match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9']+/g) ?? [];
+  }
 }
 
 function uniqueRatio(ws: string[]): number {
