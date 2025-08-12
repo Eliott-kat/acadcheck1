@@ -2,6 +2,9 @@ import { Helmet } from "react-helmet-async";
 import AppLayout from "@/components/layout/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useI18n } from "@/i18n";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const mockUsers = [
   { id: 1, email: 'student@uni.edu', role: 'student' },
@@ -16,6 +19,21 @@ const mockAnalyses = [
 
 const Admin = () => {
   const { t } = useI18n();
+  const navigate = useNavigate();
+
+  // Protect route: redirect to login if not authenticated
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) navigate('/login');
+    };
+    check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) navigate('/login');
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   return (
     <AppLayout>
       <Helmet>

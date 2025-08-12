@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 function analyzeMock(text: string) {
   const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
@@ -24,6 +25,19 @@ const Dashboard = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [pasted, setPasted] = useState("");
+
+  // Protect route: redirect to login if not authenticated
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) navigate('/login');
+    };
+    check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) navigate('/login');
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const onAnalyze = (e: React.FormEvent) => {
     e.preventDefault();

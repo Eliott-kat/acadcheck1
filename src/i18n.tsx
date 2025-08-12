@@ -15,7 +15,15 @@ const dict = {
       ctaSecondary: "Voir le tableau de bord",
     },
     nav: { dashboard: "Tableau de bord", admin: "Admin" },
-    auth: { login: "Connexion", register: "Inscription" },
+    auth: {
+      login: "Connexion",
+      register: "Inscription",
+      success: "Connecté",
+      checkEmail: "Vérifiez votre email pour confirmer.",
+      noAccount: "Pas de compte ?",
+      haveAccount: "Déjà un compte ?",
+      logout: "Déconnexion",
+    },
     dashboard: {
       title: "Soumettre un document",
       subtitle: "PDF, DOCX, TXT — ou collez du texte pour un essai rapide",
@@ -35,6 +43,7 @@ const dict = {
     },
     admin: { title: "Administration", users: "Utilisateurs", analyses: "Analyses" },
     notFound: { title: "404", p: "Page introuvable", back: "Retour à l'accueil" },
+    common: { loading: "Chargement..." },
   },
   en: {
     meta: {
@@ -48,7 +57,15 @@ const dict = {
       ctaSecondary: "Open dashboard",
     },
     nav: { dashboard: "Dashboard", admin: "Admin" },
-    auth: { login: "Login", register: "Register" },
+    auth: {
+      login: "Login",
+      register: "Register",
+      success: "Logged in",
+      checkEmail: "Check your email to confirm.",
+      noAccount: "No account?",
+      haveAccount: "Already have an account?",
+      logout: "Logout",
+    },
     dashboard: {
       title: "Submit a document",
       subtitle: "PDF, DOCX, TXT — or paste text for a quick try",
@@ -68,6 +85,7 @@ const dict = {
     },
     admin: { title: "Administration", users: "Users", analyses: "Analyses" },
     notFound: { title: "404", p: "Page not found", back: "Back home" },
+    common: { loading: "Loading..." },
   },
 };
 
