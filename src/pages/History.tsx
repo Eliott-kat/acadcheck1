@@ -5,11 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "@/i18n";
-
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { Download } from "lucide-react";
 type AnalysisRow = {
   id: string;
   created_at: string;
   document_name: string | null;
+  storage_path: string | null;
   text_length: number | null;
   ai_score: number | null;
   plagiarism_score: number | null;
@@ -20,9 +23,10 @@ type AnalysisRow = {
 const History = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [items, setItems] = useState<AnalysisRow[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [linkLoadingId, setLinkLoadingId] = useState<string | null>(null);
   // Protéger la page
   useEffect(() => {
     const check = async () => {
@@ -43,7 +47,7 @@ const History = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('analyses')
-        .select('id, created_at, document_name, text_length, ai_score, plagiarism_score, status, language')
+        .select('id, created_at, document_name, storage_path, text_length, ai_score, plagiarism_score, status, language')
         .order('created_at', { ascending: false })
         .limit(50);
       if (mounted) {
@@ -54,6 +58,34 @@ const History = () => {
     load();
     return () => { mounted = false; };
   }, []);
+
+  const openDocument = async (row: AnalysisRow) => {
+    if (!row.storage_path) {
+      toast({
+        title: "Aucun fichier",
+        description: "Ce résultat provient d'un texte collé.",
+      });
+      return;
+    }
+    try {
+      setLinkLoadingId(row.id);
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(row.storage_path, 60 * 60);
+      if (error || !data?.signedUrl) {
+        throw error || new Error('URL non disponible');
+      }
+      window.open(data.signedUrl, '_blank', 'noopener');
+    } catch (err: any) {
+      toast({
+        title: 'Téléchargement impossible',
+        description: err?.message ?? 'Veuillez réessayer plus tard.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLinkLoadingId(null);
+    }
+  };
 
   return (
     <AppLayout>
@@ -91,7 +123,22 @@ const History = () => {
                 items.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{new Date(row.created_at).toLocaleString()}</TableCell>
-                    <TableCell>{row.document_name || 'Texte collé'}</TableCell>
+                    <TableCell>{row.storage_path ? (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 h-auto"
+                        onClick={() => openDocument(row)}
+                        disabled={linkLoadingId === row.id}
+                        aria-label="Ouvrir le document"
+                        title="Ouvrir le document"
+                      >
+                        <Download className="mr-1 h-4 w-4" />
+                        {row.document_name || 'Document'}
+                      </Button>
+                    ) : (
+                      row.document_name || 'Texte collé'
+                    )}</TableCell>
                     <TableCell className="text-right">{row.text_length ?? '-'}</TableCell>
                     <TableCell className="text-right">{row.ai_score ?? 0}</TableCell>
                     <TableCell className="text-right">{row.plagiarism_score ?? 0}</TableCell>
