@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { useRef } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,9 @@ import { useLocation } from "react-router-dom";
 import { useI18n } from "@/i18n";
 import HighlightedText from "@/components/HighlightedText";
 import { DocumentPreview } from "@/components/DocumentPreview";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import jsPDF from "jspdf";
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows.map(r => r.map(v => '"' + v.split('"').join('""') + '"').join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -22,6 +25,25 @@ const Report = () => {
   const report = location.state?.report || { plagiarism: 0, aiScore: 0, sentences: [], copyleaks: { matches: 0 } };
   const text = location.state?.text || '';
   const file: File | undefined = location.state?.file;
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  const isPDF = !!file && ((file.type && file.type.includes('pdf')) || file.name?.toLowerCase().endsWith('.pdf'));
+
+  const handleDownloadPdf = async () => {
+    const node = contentRef.current;
+    if (!node) return;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    await pdf.html(node, {
+      margin: [10, 10, 10, 10],
+      autoPaging: 'text',
+      html2canvas: { scale: 0.9, useCORS: true },
+      callback: (doc) => doc.save('acadcheck_report.pdf'),
+      x: 0,
+      y: 0,
+      width: pdf.internal.pageSize.getWidth() - 20,
+      windowWidth: node.scrollWidth,
+    } as any);
+  };
 
   // Build highlight groups from sentence scores (adaptive thresholds)
   const sentences = report.sentences || [];
@@ -57,7 +79,7 @@ const Report = () => {
         <title>AcadCheck | {t('report.title')}</title>
         <meta name="description" content="Detailed analysis report" />
       </Helmet>
-      <div className="grid gap-6">
+      <div ref={contentRef} className="grid gap-6">
         <div className="grid md:grid-cols-3 gap-6">
           <div className="p-6 rounded-lg border bg-card shadow-sm">
             <h3 className="mb-2 font-semibold">{t('report.plagiarism')}</h3>
@@ -77,6 +99,7 @@ const Report = () => {
         </div>
 
         <div className="flex gap-3">
+          <Button onClick={handleDownloadPdf} variant="outline">Télécharger le PDF</Button>
           <Button onClick={() => window.print()} variant="outline">{t('report.exportPdf')}</Button>
           <Button onClick={() => downloadCsv('acadcheck_report.csv', [["Sentence","Plagiarism","AI","Source"], ...report.sentences.map((s: any) => [s.sentence, String(s.plagiarism), String(s.ai), s.source || ''])])} variant="outline">{t('report.exportCsv')}</Button>
         </div>
@@ -88,16 +111,46 @@ const Report = () => {
           </section>
         )}
 
-        <section className="p-6 rounded-lg border bg-card shadow-sm">
-          <h3 className="font-semibold mb-3">{t('report.highlights')}</h3>
-          <div className="prose max-w-none">
-            {report.sentences.length ? (
-              <HighlightedText text={text} groups={groups} />
-            ) : (
-              <p className="text-muted-foreground">{text}</p>
-            )}
-          </div>
-        </section>
+        {(!file || isPDF) && (
+          <section className="p-6 rounded-lg border bg-card shadow-sm">
+            <h3 className="font-semibold mb-3">{t('report.highlights')}</h3>
+            <div className="prose max-w-none">
+              {report.sentences.length ? (
+                <HighlightedText text={text} groups={groups} />
+              ) : (
+                <p className="text-muted-foreground">{text}</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {report.sentences.length > 0 && (
+          <section className="p-6 rounded-lg border bg-card shadow-sm">
+            <h3 className="font-semibold mb-3">Phrases et sources</h3>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Phrase</TableHead>
+                    <TableHead className="text-right">Plagiat</TableHead>
+                    <TableHead className="text-right">IA</TableHead>
+                    <TableHead>Source</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.sentences.map((s: any, idx: number) => (
+                    <TableRow key={idx}>
+                      <TableCell className="max-w-[640px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
+                      <TableCell className="text-right">{s.plagiarism}%</TableCell>
+                      <TableCell className="text-right">{s.ai}%</TableCell>
+                      <TableCell>{s.source || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </section>
+        )}
 
         <section className="p-6 rounded-lg border bg-card shadow-sm">
           <h3 className="font-semibold mb-3">Exemple de surlignage</h3>
