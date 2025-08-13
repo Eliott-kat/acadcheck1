@@ -68,6 +68,10 @@ const Report = () => {
     const topCount = Math.max(1, Math.ceil(sentences.length * 0.1));
     plgTerms = uniq([...sentences].sort((a: any, b: any) => b.plagiarism - a.plagiarism).slice(0, topCount).map((s: any) => s.sentence));
   }
+  // If overall plagiarism is 0%, do not highlight any plagiarism
+  if ((report?.plagiarism ?? 0) <= 0) {
+    plgTerms = [];
+  }
 
   const groups = [
     { terms: aiTerms, className: "mark-ai" },
