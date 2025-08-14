@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 type AnalysisRow = {
   id: string;
   created_at: string;
@@ -18,6 +18,8 @@ type AnalysisRow = {
   plagiarism_score: number | null;
   status: string;
   language: string | null;
+  copyleaks_result: any;
+  gptzero_result: any;
 };
 
 const History = () => {
@@ -47,7 +49,7 @@ const History = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('analyses')
-        .select('id, created_at, document_name, storage_path, text_length, ai_score, plagiarism_score, status, language')
+        .select('id, created_at, document_name, storage_path, text_length, ai_score, plagiarism_score, status, language, copyleaks_result, gptzero_result')
         .order('created_at', { ascending: false })
         .limit(50);
       if (mounted) {
@@ -87,6 +89,24 @@ const History = () => {
     }
   };
 
+  const viewReport = (row: AnalysisRow) => {
+    // Créer un rapport simplifié à partir des données disponibles
+    const report = {
+      plagiarismScore: row.plagiarism_score || 0,
+      aiScore: row.ai_score || 0,
+      copyleaksMatches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0,
+      sentences: []
+    };
+
+    navigate('/report', {
+      state: {
+        report,
+        originalText: 'Texte original non disponible pour les analyses précédentes',
+        uploadedFile: null
+      }
+    });
+  };
+
   return (
     <AppLayout>
       <Helmet>
@@ -108,41 +128,52 @@ const History = () => {
                 <TableHead className="text-right">IA %</TableHead>
                 <TableHead className="text-right">Plagiat %</TableHead>
                 <TableHead>Statut</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6}>Chargement...</TableCell>
+                  <TableCell colSpan={7}>Chargement...</TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground">Aucune analyse trouvée.</TableCell>
+                  <TableCell colSpan={7} className="text-muted-foreground">Aucune analyse trouvée.</TableCell>
                 </TableRow>
               ) : (
                 items.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{new Date(row.created_at).toLocaleString()}</TableCell>
-                    <TableCell>{row.storage_path ? (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="p-0 h-auto"
-                        onClick={() => openDocument(row)}
-                        disabled={linkLoadingId === row.id}
-                        aria-label="Ouvrir le document"
-                        title="Ouvrir le document"
-                      >
-                        <Download className="mr-1 h-4 w-4" />
-                        {row.document_name || 'Document'}
-                      </Button>
-                    ) : (
-                      row.document_name || 'Texte collé'
-                    )}</TableCell>
+                    <TableCell>{row.document_name || 'Texte collé'}</TableCell>
                     <TableCell className="text-right">{row.text_length ?? '-'}</TableCell>
                     <TableCell className="text-right">{row.ai_score ?? 0}</TableCell>
                     <TableCell className="text-right">{row.plagiarism_score ?? 0}</TableCell>
                     <TableCell>{row.status}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => viewReport(row)}
+                          aria-label="Voir le rapport"
+                          title="Voir le rapport"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        {row.storage_path && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDocument(row)}
+                            disabled={linkLoadingId === row.id}
+                            aria-label="Télécharger le document"
+                            title="Télécharger le document"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
