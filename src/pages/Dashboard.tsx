@@ -53,17 +53,35 @@ const onAnalyze = async (e: React.FormEvent) => {
   }
   const docs = await getAllDocuments();
   const report = analyzeText(text, { corpus: docs.map(d => ({ name: d.name, text: d.text })) });
+  
   // Enregistrer un résumé de l'analyse pour l'historique (RLS: user_id = auth.uid())
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id;
     if (uid) {
+      let storagePath: string | null = null;
+      
+      // Sauvegarder le fichier si présent
+      if (selectedFile) {
+        const fileName = `${uid}/${Date.now()}_${selectedFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, selectedFile);
+        
+        if (!uploadError) {
+          storagePath = fileName;
+        } else {
+          console.warn('Erreur upload fichier:', uploadError);
+        }
+      }
+
       const { data: analysis } = await supabase.from('analyses').insert({
         user_id: uid,
         text_length: text.length,
         ai_score: Math.round(report.aiScore ?? 0),
         plagiarism_score: Math.round(report.plagiarism ?? 0),
         document_name: selectedFile?.name ?? null,
+        storage_path: storagePath,
         original_text: text, // Sauvegarder le texte original complet
         language: 'fr',
         status: 'completed'
