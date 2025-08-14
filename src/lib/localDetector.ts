@@ -1,3 +1,5 @@
+import { aiDetectionModel } from './aiTraining';
+
 export type SentenceScore = {
   sentence: string;
   ai: number; // 0-100
@@ -9,6 +11,8 @@ export type SentenceScore = {
     syntacticComplexity: number;
     semanticCoherence: number;
     stylometricScore: number;
+    perplexity?: number;
+    burstiness?: number;
   };
 };
 
@@ -21,6 +25,8 @@ export type LocalReport = {
     overallStyle: string;
     suspiciousPatterns: string[];
     recommendations: string[];
+    modelUsed: string;
+    processingTime: number;
   };
 };
 
@@ -201,7 +207,82 @@ function ngrams(ws: string[], n: number): Set<string> {
   return res;
 }
 
-export function analyzeText(
+export async function analyzeText(
+  text: string,
+  opts?: { corpus?: { name: string; text: string }[]; ngram?: number; useML?: boolean }
+): Promise<LocalReport> {
+  const startTime = Date.now();
+  const useML = opts?.useML !== false; // Par défaut, utiliser ML
+  let modelUsed = 'Algorithme heuristique';
+  
+  // Tentative d'utilisation des modèles ML améliorés
+  if (useML) {
+    try {
+      console.log('Tentative d\'utilisation des modèles ML...');
+      const mlPrediction = await aiDetectionModel.predict(text);
+      
+      // Si ML fonctionne, combiner avec l'analyse traditionnelle
+      const traditionalAnalysis = analyzeTextTraditional(text, opts);
+      modelUsed = 'Modèles ML + Heuristiques';
+      
+      return combineMLAndTraditional(mlPrediction, traditionalAnalysis, startTime, modelUsed);
+    } catch (error) {
+      console.warn('Modèles ML non disponibles, utilisation de l\'algorithme traditionnel:', error);
+    }
+  }
+  
+  // Fallback vers l'algorithme traditionnel
+  const result = analyzeTextTraditional(text, opts);
+  result.analysis.modelUsed = modelUsed;
+  result.analysis.processingTime = Date.now() - startTime;
+  
+  return result;
+}
+
+function combineMLAndTraditional(mlPrediction: any, traditionalAnalysis: LocalReport, startTime: number, modelUsed: string): LocalReport {
+  // Combiner intelligemment les résultats ML et traditionnels
+  const combinedAIScore = Math.round((mlPrediction.aiScore * 0.7 + traditionalAnalysis.aiScore * 0.3));
+  const combinedPlagiarism = Math.round((mlPrediction.plagiarismScore * 0.6 + traditionalAnalysis.plagiarism * 0.4));
+  const combinedConfidence = Math.round((mlPrediction.confidence * 0.8 + traditionalAnalysis.confidence * 0.2));
+  
+  // Enrichir les features avec les données ML
+  const enrichedSentences = traditionalAnalysis.sentences.map(s => ({
+    ...s,
+    features: {
+      ...s.features,
+      perplexity: mlPrediction.features.perplexity,
+      burstiness: mlPrediction.features.burstiness
+    }
+  }));
+  
+  // Améliorer l'analyse avec les insights ML
+  const enhancedAnalysis = {
+    ...traditionalAnalysis.analysis,
+    modelUsed,
+    processingTime: Date.now() - startTime,
+    suspiciousPatterns: [
+      ...traditionalAnalysis.analysis.suspiciousPatterns,
+      ...(mlPrediction.aiScore > 80 ? ['Patterns ML d\'IA détectés avec haute confiance'] : []),
+      ...(mlPrediction.features.perplexity < 2 ? ['Perplexité très faible (suspect)'] : []),
+      ...(Math.abs(mlPrediction.features.burstiness) < 0.1 ? ['Burstiness très faible (uniforme)'] : [])
+    ],
+    recommendations: [
+      ...traditionalAnalysis.analysis.recommendations,
+      ...(mlPrediction.confidence > 90 ? ['Analyse ML très fiable - résultats robustes'] : []),
+      ...(mlPrediction.confidence < 50 ? ['Confiance ML faible - vérification manuelle recommandée'] : [])
+    ]
+  };
+  
+  return {
+    aiScore: combinedAIScore,
+    plagiarism: combinedPlagiarism,
+    confidence: combinedConfidence,
+    sentences: enrichedSentences,
+    analysis: enhancedAnalysis
+  };
+}
+
+function analyzeTextTraditional(
   text: string,
   opts?: { corpus?: { name: string; text: string }[]; ngram?: number }
 ): LocalReport {
@@ -410,7 +491,9 @@ export function analyzeText(
   const analysis = {
     overallStyle,
     suspiciousPatterns,
-    recommendations
+    recommendations,
+    modelUsed: 'Algorithme heuristique',
+    processingTime: 0
   };
 
   return { aiScore, plagiarism, confidence, sentences, analysis };

@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { fileToText } from "@/lib/fileToText";
 import { toast } from "@/components/ui/use-toast";
 import { addDocumentFromFile, countDocuments, getAllDocuments } from "@/lib/corpusDB";
+import { TrainingPanel } from "@/components/TrainingPanel";
 
 const LocalAnalyze = () => {
   const [text, setText] = useState("");
@@ -49,7 +50,11 @@ const LocalAnalyze = () => {
     setLoading(true);
     try {
       const docs = await getAllDocuments();
-      const report = analyzeText(text, { corpus: docs.map(d => ({ name: d.name, text: d.text })) });
+      // Utiliser l'API async améliorée avec modèles ML
+      const report = await analyzeText(text, { 
+        corpus: docs.map(d => ({ name: d.name, text: d.text })),
+        useML: true 
+      });
       navigate("/report", { state: { report: { ...report, copyleaks: { matches: 0 } }, text } });
     } finally {
       setLoading(false);
@@ -101,6 +106,8 @@ const LocalAnalyze = () => {
             <Button variant="outline" onClick={() => setText("")} disabled={loading}>Effacer</Button>
           </div>
         </section>
+        
+        <TrainingPanel />
       </main>
     </AppLayout>
   );

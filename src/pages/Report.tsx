@@ -143,6 +143,17 @@ const Report = () => {
                 <p className="text-sm bg-muted/50 p-3 rounded">{report.analysis.overallStyle}</p>
               </div>
               
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium mb-2">Modèle utilisé</h4>
+                  <p className="text-sm text-muted-foreground">{report.analysis.modelUsed}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Temps de traitement</h4>
+                  <p className="text-sm text-muted-foreground">{report.analysis.processingTime}ms</p>
+                </div>
+              </div>
+              
               {report.analysis.suspiciousPatterns.length > 0 && (
                 <div>
                   <h4 className="font-medium mb-2">Patterns suspects détectés</h4>
@@ -184,18 +195,20 @@ const Report = () => {
                     <TableHead>Source</TableHead>
                     <TableHead className="text-right">Diversité</TableHead>
                     <TableHead className="text-right">Complexité</TableHead>
+                    <TableHead className="text-right">Perplexité</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {report.sentences.map((s: any, idx: number) => (
                     <TableRow key={idx}>
-                      <TableCell className="max-w-[400px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
+                      <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
                       <TableCell className="text-right">{s.plagiarism}%</TableCell>
                       <TableCell className="text-right">{s.ai}%</TableCell>
                       <TableCell className="text-right">{s.confidence || 0}%</TableCell>
                       <TableCell>{s.source || '—'}</TableCell>
                       <TableCell className="text-right">{s.features?.lexicalDiversity || 0}%</TableCell>
                       <TableCell className="text-right">{s.features?.syntacticComplexity || 0}%</TableCell>
+                      <TableCell className="text-right">{s.features?.perplexity?.toFixed(1) || '—'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
