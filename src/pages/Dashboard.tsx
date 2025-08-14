@@ -58,15 +58,30 @@ const onAnalyze = async (e: React.FormEvent) => {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id;
     if (uid) {
-      await supabase.from('analyses').insert({
+      const { data: analysis } = await supabase.from('analyses').insert({
         user_id: uid,
         text_length: text.length,
         ai_score: Math.round(report.aiScore ?? 0),
         plagiarism_score: Math.round(report.plagiarism ?? 0),
         document_name: selectedFile?.name ?? null,
+        original_text: text, // Sauvegarder le texte original complet
         language: 'fr',
         status: 'completed'
-      });
+      }).select().single();
+
+      // Sauvegarder aussi les phrases détaillées pour le rapport
+      if (analysis && report.sentences) {
+        const sentences = report.sentences.map((sentence, idx) => ({
+          analysis_id: analysis.id,
+          idx,
+          text: sentence.sentence,
+          ai: Math.round(sentence.ai ?? 0),
+          plagiarism: Math.round(sentence.plagiarism ?? 0),
+          source_url: sentence.source || null
+        }));
+        
+        await supabase.from('analysis_sentences').insert(sentences);
+      }
     }
   } catch (err) {
     console.error('Erreur lors de la sauvegarde de l\'analyse', err);

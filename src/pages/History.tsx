@@ -91,45 +91,43 @@ const History = () => {
 
   const viewReport = async (row: AnalysisRow) => {
     try {
-      // Récupérer les phrases de l'analyse pour reconstituer le texte original
-      const { data: sentences, error } = await supabase
+      // D'abord essayer de récupérer le texte original depuis la colonne original_text
+      const { data: analysisData, error: analysisError } = await supabase
+        .from('analyses')
+        .select('original_text')
+        .eq('id', row.id)
+        .single();
+
+      let originalText = 'Texte original non disponible pour cette analyse';
+      
+      if (!analysisError && analysisData?.original_text) {
+        // Utiliser le texte original stocké
+        originalText = analysisData.original_text;
+      } else {
+        // Fallback: essayer de reconstituer à partir des phrases
+        const { data: sentences } = await supabase
+          .from('analysis_sentences')
+          .select('text, idx')
+          .eq('analysis_id', row.id)
+          .order('idx', { ascending: true });
+
+        if (sentences && sentences.length > 0) {
+          originalText = sentences.map(s => s.text).join(' ');
+        }
+      }
+
+      // Récupérer les phrases détaillées pour le rapport
+      const { data: sentences } = await supabase
         .from('analysis_sentences')
         .select('text, idx, plagiarism, ai, source_url')
         .eq('analysis_id', row.id)
         .order('idx', { ascending: true });
-
-      if (error) {
-        console.error('Erreur lors de la récupération des phrases:', error);
-        toast({
-          title: 'Erreur',
-          description: 'Impossible de récupérer les données de l\'analyse',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Vérifier si des phrases ont été trouvées
-      let originalText = 'Texte original non disponible pour cette analyse';
-      let reportSentences: any[] = [];
-
-      if (sentences && sentences.length > 0) {
-        // Reconstituer le texte original à partir des phrases
-        originalText = sentences.map(s => s.text).join(' ');
-        reportSentences = sentences;
-      } else {
-        // Aucune phrase trouvée, afficher un message informatif
-        toast({
-          title: 'Information',
-          description: 'Les détails de cette analyse ne sont plus disponibles. Seuls les scores sont affichés.',
-          variant: 'default',
-        });
-      }
       
       // Créer un rapport avec la structure attendue par Report.tsx
       const report = {
         plagiarism: row.plagiarism_score || 0,
         aiScore: row.ai_score || 0,
-        sentences: reportSentences,
+        sentences: sentences || [],
         copyleaks: {
           matches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0
         }
