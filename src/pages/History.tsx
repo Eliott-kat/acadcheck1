@@ -91,7 +91,7 @@ const History = () => {
 
   const viewReport = async (row: AnalysisRow) => {
     try {
-      // D'abord essayer de récupérer le texte original depuis la colonne original_text
+      // Récupérer le texte original depuis la colonne original_text
       const { data: analysisData, error: analysisError } = await supabase
         .from('analyses')
         .select('original_text')
@@ -101,7 +101,6 @@ const History = () => {
       let originalText = 'Texte original non disponible pour cette analyse';
       
       if (!analysisError && analysisData?.original_text) {
-        // Utiliser le texte original stocké
         originalText = analysisData.original_text;
       } else {
         // Fallback: essayer de reconstituer à partir des phrases
@@ -123,11 +122,34 @@ const History = () => {
         .eq('analysis_id', row.id)
         .order('idx', { ascending: true });
       
+      // Récupérer le fichier original si disponible
+      let originalFile: File | null = null;
+      if (row.storage_path && row.document_name) {
+        try {
+          const { data: fileData, error: fileError } = await supabase.storage
+            .from('documents')
+            .download(row.storage_path);
+          
+          if (!fileError && fileData) {
+            originalFile = new File([fileData], row.document_name, { 
+              type: getFileType(row.document_name) 
+            });
+          }
+        } catch (fileErr) {
+          console.warn('Impossible de récupérer le fichier:', fileErr);
+        }
+      }
+      
       // Créer un rapport avec la structure attendue par Report.tsx
       const report = {
         plagiarism: row.plagiarism_score || 0,
         aiScore: row.ai_score || 0,
-        sentences: sentences || [],
+        sentences: (sentences || []).map(s => ({
+          sentence: s.text,
+          plagiarism: s.plagiarism || 0,
+          ai: s.ai || 0,
+          source: s.source_url || ''
+        })),
         copyleaks: {
           matches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0
         }
@@ -137,7 +159,7 @@ const History = () => {
         state: {
           report,
           text: originalText,
-          file: null
+          file: originalFile
         }
       });
     } catch (err) {
@@ -147,6 +169,16 @@ const History = () => {
         description: 'Impossible de charger le rapport',
         variant: 'destructive',
       });
+    }
+  };
+
+  const getFileType = (filename: string): string => {
+    const ext = filename.toLowerCase().split('.').pop();
+    switch (ext) {
+      case 'pdf': return 'application/pdf';
+      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'txt': return 'text/plain';
+      default: return 'application/octet-stream';
     }
   };
 
