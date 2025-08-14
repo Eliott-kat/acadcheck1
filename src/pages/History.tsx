@@ -90,19 +90,21 @@ const History = () => {
   };
 
   const viewReport = (row: AnalysisRow) => {
-    // Créer un rapport simplifié à partir des données disponibles
+    // Créer un rapport avec la structure attendue par Report.tsx
     const report = {
-      plagiarismScore: row.plagiarism_score || 0,
+      plagiarism: row.plagiarism_score || 0,
       aiScore: row.ai_score || 0,
-      copyleaksMatches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0,
-      sentences: []
+      sentences: [],
+      copyleaks: {
+        matches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0
+      }
     };
 
     navigate('/report', {
       state: {
         report,
-        originalText: 'Texte original non disponible pour les analyses précédentes',
-        uploadedFile: null
+        text: 'Texte original non disponible pour les analyses précédentes',
+        file: null
       }
     });
   };
