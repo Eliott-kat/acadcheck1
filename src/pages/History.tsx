@@ -89,24 +89,47 @@ const History = () => {
     }
   };
 
-  const viewReport = (row: AnalysisRow) => {
-    // Créer un rapport avec la structure attendue par Report.tsx
-    const report = {
-      plagiarism: row.plagiarism_score || 0,
-      aiScore: row.ai_score || 0,
-      sentences: [],
-      copyleaks: {
-        matches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0
-      }
-    };
+  const viewReport = async (row: AnalysisRow) => {
+    try {
+      // Récupérer les phrases de l'analyse pour reconstituer le texte original
+      const { data: sentences, error } = await supabase
+        .from('analysis_sentences')
+        .select('text, idx, plagiarism, ai, source_url')
+        .eq('analysis_id', row.id)
+        .order('idx', { ascending: true });
 
-    navigate('/report', {
-      state: {
-        report,
-        text: 'Texte original non disponible pour les analyses précédentes',
-        file: null
+      if (error) {
+        console.error('Erreur lors de la récupération des phrases:', error);
       }
-    });
+
+      // Reconstituer le texte original à partir des phrases
+      const originalText = sentences?.map(s => s.text).join(' ') || 'Texte original non disponible';
+      
+      // Créer un rapport avec la structure attendue par Report.tsx
+      const report = {
+        plagiarism: row.plagiarism_score || 0,
+        aiScore: row.ai_score || 0,
+        sentences: sentences || [],
+        copyleaks: {
+          matches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0
+        }
+      };
+
+      navigate('/report', {
+        state: {
+          report,
+          text: originalText,
+          file: null
+        }
+      });
+    } catch (err) {
+      console.error('Erreur:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger le rapport',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
