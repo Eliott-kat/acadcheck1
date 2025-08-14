@@ -100,16 +100,36 @@ const History = () => {
 
       if (error) {
         console.error('Erreur lors de la récupération des phrases:', error);
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de récupérer les données de l\'analyse',
+          variant: 'destructive',
+        });
+        return;
       }
 
-      // Reconstituer le texte original à partir des phrases
-      const originalText = sentences?.map(s => s.text).join(' ') || 'Texte original non disponible';
+      // Vérifier si des phrases ont été trouvées
+      let originalText = 'Texte original non disponible pour cette analyse';
+      let reportSentences: any[] = [];
+
+      if (sentences && sentences.length > 0) {
+        // Reconstituer le texte original à partir des phrases
+        originalText = sentences.map(s => s.text).join(' ');
+        reportSentences = sentences;
+      } else {
+        // Aucune phrase trouvée, afficher un message informatif
+        toast({
+          title: 'Information',
+          description: 'Les détails de cette analyse ne sont plus disponibles. Seuls les scores sont affichés.',
+          variant: 'default',
+        });
+      }
       
       // Créer un rapport avec la structure attendue par Report.tsx
       const report = {
         plagiarism: row.plagiarism_score || 0,
         aiScore: row.ai_score || 0,
-        sentences: sentences || [],
+        sentences: reportSentences,
         copyleaks: {
           matches: row.copyleaks_result?.scannedDocument?.results?.internet?.length || 0
         }
