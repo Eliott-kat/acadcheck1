@@ -84,7 +84,7 @@ const Report = () => {
         <meta name="description" content="Detailed analysis report" />
       </Helmet>
       <div ref={contentRef} className="grid gap-6">
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-4 gap-6">
           <div className="p-6 rounded-lg border bg-card shadow-sm">
             <h3 className="mb-2 font-semibold">{t('report.plagiarism')}</h3>
             <div className="text-3xl font-bold mb-2">{report.plagiarism}%</div>
@@ -94,6 +94,12 @@ const Report = () => {
             <h3 className="mb-2 font-semibold">{t('report.ai')}</h3>
             <div className="text-3xl font-bold mb-2">{report.aiScore}%</div>
             <Progress value={report.aiScore} />
+          </div>
+          <div className="p-6 rounded-lg border bg-card shadow-sm">
+            <h3 className="mb-2 font-semibold">Confiance</h3>
+            <div className="text-3xl font-bold mb-2">{report.confidence || 0}%</div>
+            <Progress value={report.confidence || 0} />
+            <p className="text-xs text-muted-foreground mt-1">Fiabilité de l'analyse</p>
           </div>
           <div className="p-6 rounded-lg border bg-card shadow-sm">
             <h3 className="mb-2 font-semibold">{t('report.copyleaks')}</h3>
@@ -128,9 +134,45 @@ const Report = () => {
           </section>
         )}
 
+        {report.analysis && (
+          <section className="p-6 rounded-lg border bg-card shadow-sm">
+            <h3 className="font-semibold mb-4">Analyse détaillée</h3>
+            <div className="grid gap-4">
+              <div>
+                <h4 className="font-medium mb-2">Style détecté</h4>
+                <p className="text-sm bg-muted/50 p-3 rounded">{report.analysis.overallStyle}</p>
+              </div>
+              
+              {report.analysis.suspiciousPatterns.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">Patterns suspects détectés</h4>
+                  <ul className="space-y-1">
+                    {report.analysis.suspiciousPatterns.map((pattern: string, idx: number) => (
+                      <li key={idx} className="text-sm text-orange-600 dark:text-orange-400">
+                        • {pattern}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              <div>
+                <h4 className="font-medium mb-2">Recommandations</h4>
+                <ul className="space-y-1">
+                  {report.analysis.recommendations.map((rec: string, idx: number) => (
+                    <li key={idx} className="text-sm text-muted-foreground">
+                      • {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+        )}
+
         {report.sentences.length > 0 && (
           <section className="p-6 rounded-lg border bg-card shadow-sm">
-            <h3 className="font-semibold mb-3">Phrases et sources</h3>
+            <h3 className="font-semibold mb-3">Analyse détaillée par phrase</h3>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -138,16 +180,22 @@ const Report = () => {
                     <TableHead>Phrase</TableHead>
                     <TableHead className="text-right">Plagiat</TableHead>
                     <TableHead className="text-right">IA</TableHead>
+                    <TableHead className="text-right">Confiance</TableHead>
                     <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Diversité</TableHead>
+                    <TableHead className="text-right">Complexité</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {report.sentences.map((s: any, idx: number) => (
                     <TableRow key={idx}>
-                      <TableCell className="max-w-[640px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
+                      <TableCell className="max-w-[400px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
                       <TableCell className="text-right">{s.plagiarism}%</TableCell>
                       <TableCell className="text-right">{s.ai}%</TableCell>
+                      <TableCell className="text-right">{s.confidence || 0}%</TableCell>
                       <TableCell>{s.source || '—'}</TableCell>
+                      <TableCell className="text-right">{s.features?.lexicalDiversity || 0}%</TableCell>
+                      <TableCell className="text-right">{s.features?.syntacticComplexity || 0}%</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -2,22 +2,59 @@ export type SentenceScore = {
   sentence: string;
   ai: number; // 0-100
   plagiarism: number; // 0-100
+  confidence: number; // 0-100 confidence level
   source?: string;
+  features?: {
+    lexicalDiversity: number;
+    syntacticComplexity: number;
+    semanticCoherence: number;
+    stylometricScore: number;
+  };
 };
 
 export type LocalReport = {
   aiScore: number;
   plagiarism: number;
+  confidence: number;
   sentences: SentenceScore[];
+  analysis: {
+    overallStyle: string;
+    suspiciousPatterns: string[];
+    recommendations: string[];
+  };
 };
 
 const STOPWORDS = new Set([
   'the','of','and','to','in','a','is','that','for','on','with','as','by','it','be','are','this','an','or','from','at','which','but','not','we','our','their','also','can','have','has','was','were','than','these','those','such','may','more','most','any','all','some','into','between','over','under','about','after','before','during','through','per','i','you','he','she','they','them','his','her','its','there','here'
 ]);
 
+// Marqueurs linguistiques d'IA
+const AI_PATTERNS = [
+  // Phrases de transition typiques de l'IA
+  /\b(furthermore|moreover|additionally|consequently|therefore|thus)\b/gi,
+  // Structures répétitives
+  /\b(it is important to note|it should be noted|it is worth noting)\b/gi,
+  // Formulations génériques
+  /\b(in conclusion|to conclude|in summary|to summarize)\b/gi,
+  // Patterns de listes structurées
+  /\b(firstly|secondly|thirdly|finally)\b/gi,
+  // Langage trop parfait/formel
+  /\b(utilize|implement|facilitate|optimize|streamline)\b/gi
+];
+
+// Patterns de plagiat académique
+const PLAGIARISM_PATTERNS = [
+  // Citations manquantes ou mal formatées
+  /\b(according to research|studies show|research indicates)\s+(?!.*\(.*\d{4}.*\))/gi,
+  // Phrases trop techniques sans contexte
+  /\b[A-Z][a-z]+\s+et\s+al\.\s+\(\d{4}\)/g,
+  // Définitions encyclopédiques
+  /^[A-Z][a-z]+\s+is\s+(defined as|a type of|characterized by)/gm
+];
+
 function splitSentences(text: string): string[] {
   // Avoid regex lookbehind for Safari compatibility: insert a splitter token after end punctuation
-  const withDelims = text.replace(/([.!?])\s+(?=[A-ZÀ-ÖØ-Þ]|\d|“|\(|\[)/g, '$1|');
+  const withDelims = text.replace(/([.!?])\s+(?=[A-ZÀ-ÖØ-Þ]|\d|"|\(|\[)/g, '$1|');
   return withDelims
     .split('|')
     .map(s => s.trim())
@@ -50,6 +87,93 @@ function stopwordRatio(ws: string[]): number {
 function avgWordLen(ws: string[]): number {
   if (ws.length === 0) return 0;
   return ws.reduce((a, w) => a + w.length, 0) / ws.length;
+}
+
+// Analyse de la complexité syntaxique
+function syntaxComplexity(sentence: string): number {
+  const clauseMarkers = (sentence.match(/[,:;]/g) || []).length;
+  const subordination = (sentence.match(/\b(that|which|who|where|when|while|although|because|since)\b/gi) || []).length;
+  const words = sentence.split(/\s+/).length;
+  
+  if (words === 0) return 0;
+  const complexity = (clauseMarkers + subordination * 2) / words;
+  return Math.min(1, complexity * 10); // Normaliser à [0,1]
+}
+
+// Détection de patterns stylistiques répétitifs
+function detectStylometricPatterns(sentences: string[]): number {
+  const structures = sentences.map(s => {
+    const words = s.split(/\s+/);
+    return {
+      startsWithThe: /^The\s/i.test(s),
+      endsWithPeriod: /\.$/.test(s),
+      hasSubordinate: /\b(that|which|who)\b/i.test(s),
+      wordCount: words.length,
+      avgWordLength: words.reduce((a, w) => a + w.length, 0) / words.length
+    };
+  });
+  
+  // Calculer la variance dans la structure
+  const wordCountVariance = variance(structures.map(s => s.wordCount));
+  const avgLengthVariance = variance(structures.map(s => s.avgWordLength));
+  
+  // Scores plus bas = plus uniforme = plus suspecte
+  const uniformity = 1 - (wordCountVariance / 100 + avgLengthVariance / 10) / 2;
+  return Math.max(0, Math.min(1, uniformity));
+}
+
+function variance(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  return arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length;
+}
+
+// Cohérence sémantique - détecte les transitions abruptes
+function semanticCoherence(currentSent: string, prevSent?: string, nextSent?: string): number {
+  if (!prevSent && !nextSent) return 0.5;
+  
+  let coherence = 0;
+  let count = 0;
+  
+  const currentWords = new Set(words(currentSent.toLowerCase()));
+  
+  if (prevSent) {
+    const prevWords = new Set(words(prevSent.toLowerCase()));
+    const overlap = new Set([...currentWords].filter(w => prevWords.has(w))).size;
+    coherence += overlap / Math.max(currentWords.size, prevWords.size);
+    count++;
+  }
+  
+  if (nextSent) {
+    const nextWords = new Set(words(nextSent.toLowerCase()));
+    const overlap = new Set([...currentWords].filter(w => nextWords.has(w))).size;
+    coherence += overlap / Math.max(currentWords.size, nextWords.size);
+    count++;
+  }
+  
+  return count > 0 ? coherence / count : 0.5;
+}
+
+// Détection de patterns d'IA spécifiques
+function detectAIPatterns(sentence: string): number {
+  let score = 0;
+  for (const pattern of AI_PATTERNS) {
+    if (pattern.test(sentence)) {
+      score += 0.2;
+    }
+  }
+  return Math.min(1, score);
+}
+
+// Détection de patterns de plagiat
+function detectPlagiarismPatterns(sentence: string): number {
+  let score = 0;
+  for (const pattern of PLAGIARISM_PATTERNS) {
+    if (pattern.test(sentence)) {
+      score += 0.3;
+    }
+  }
+  return Math.min(1, score);
 }
 
 function charEntropy(s: string): number {
@@ -110,6 +234,9 @@ export function analyzeText(
   const corpus = opts?.corpus || [];
   const corpusSets = corpus.map(d => ({ name: d.name, set: ngrams(words(d.text), n) }));
 
+  // Détection de patterns stylistiques globaux
+  const stylometricScore = detectStylometricPatterns(sents);
+
   const sentences: SentenceScore[] = sents.map((s, i) => {
     const ws = sentWords[i];
     const ttr = uniqueRatio(ws);
@@ -117,9 +244,15 @@ export function analyzeText(
     const awl = avgWordLen(ws);
     const ent = charEntropy(s);
 
-    const puncts = (s.match(/[,:;\-—()\[\]“”"'…]/g) || []).length;
+    const puncts = (s.match(/[,:;\-—()\[\]"""'…]/g) || []).length;
     const digits = (s.match(/\d/g) || []).length;
 
+    // Nouvelles métriques avancées
+    const syntaxComp = syntaxComplexity(s);
+    const semCoherence = semanticCoherence(s, sents[i-1], sents[i+1]);
+    const aiPatterns = detectAIPatterns(s);
+    const plagPatterns = detectPlagiarismPatterns(s);
+    
     // Sentence-level burstiness vs mean
     const burstSim = 1 - Math.min(1, Math.abs((ws.length - meanLen) / (stdLen || 1)));
 
@@ -135,32 +268,36 @@ export function analyzeText(
     }
     const sentRepRatio = sentBigramsCount ? sentRepBigrams / sentBigramsCount : 0;
 
-    // Feature engineering to [0,1]
+    // Feature engineering amélioré
     const ttrScore = 1 - ttr; // low ttr => more AI
     const stopMid = 1 - Math.min(1, Math.abs(stopR - 0.45) / 0.45);
     const awlScore = Math.min(1, Math.max(0, (awl - 4) / 4));
     const entScore = 1 - Math.min(1, Math.abs(ent - 3.5) / 3.5);
-    const punctScore = Math.min(1, puncts / 8); // few punctuation => AI-ish
-    const digitScore = Math.min(1, digits / 6); // many digits often human/technical => reduce AI score later
-    const repDocScore = repBigramRatio; // document repetition
-    const repSentScore = sentRepRatio;  // sentence repetition
-    const tfcScore = tfcNorm;           // token concentration
+    const punctScore = Math.min(1, puncts / 8);
+    const digitScore = Math.min(1, digits / 6);
+    const repDocScore = repBigramRatio;
+    const repSentScore = sentRepRatio;
+    const tfcScore = tfcNorm;
 
-    // Combine (weights tuned heuristically)
+    // Score IA amélioré avec nouvelles métriques
     let ai01 =
-      0.22 * burstSim +
-      0.18 * ttrScore +
-      0.12 * stopMid +
-      0.12 * awlScore +
-      0.10 * entScore +
-      0.10 * repDocScore +
-      0.10 * repSentScore +
-      0.06 * punctScore;
+      0.15 * burstSim +
+      0.15 * ttrScore +
+      0.10 * stopMid +
+      0.10 * awlScore +
+      0.08 * entScore +
+      0.08 * repDocScore +
+      0.08 * repSentScore +
+      0.05 * punctScore +
+      0.12 * stylometricScore +
+      0.09 * (1 - semCoherence) + // Manque de cohérence = plus suspect
+      0.10 * aiPatterns +
+      0.08 * (1 - syntaxComp); // Syntaxe trop simple = plus AI
 
-    // Reduce AI score if many digits (data-heavy sentence)
+    // Réduire le score IA si beaucoup de chiffres
     ai01 = Math.max(0, ai01 - 0.08 * digitScore);
 
-    // Plagiarism proxy: overlap with any other sentence's n-grams (internal)
+    // Plagiarisme amélioré
     let plgInternal = 0;
     for (let j = 0; j < sents.length; j++) {
       if (j === i) continue;
@@ -169,7 +306,7 @@ export function analyzeText(
       if (plgInternal > 0.98) break;
     }
 
-    // External plagiarism vs corpus (max Jaccard over docs)
+    // Plagiarisme externe
     let bestExt = 0;
     let bestSource: string | undefined = undefined;
     if (corpusSets.length) {
@@ -183,21 +320,98 @@ export function analyzeText(
       }
     }
 
-    const plg = Math.max(plgInternal, bestExt);
+    // Combiner plagiarisme interne, externe et patterns détectés
+    const plg = Math.max(plgInternal, bestExt, plagPatterns);
 
     const ai = Math.round(ai01 * 100);
     const plagiarism = Math.round(plg * 100);
 
-    // Only attach a source label if external similarity is meaningful
+    // Calcul de confiance basé sur la convergence des métriques
+    const metrics = [ttrScore, stopMid, awlScore, entScore, stylometricScore];
+    const metricsMean = metrics.reduce((a, b) => a + b, 0) / metrics.length;
+    const metricsVariance = metrics.reduce((a, b) => a + Math.pow(b - metricsMean, 2), 0) / metrics.length;
+    const confidence = Math.round((1 - metricsVariance) * 100);
+
     const source = bestExt >= 0.3 ? bestSource : undefined;
 
-    return { sentence: s, ai, plagiarism, source };
+    // Features détaillées pour l'analyse
+    const features = {
+      lexicalDiversity: Math.round(ttr * 100),
+      syntacticComplexity: Math.round(syntaxComp * 100),
+      semanticCoherence: Math.round(semCoherence * 100),
+      stylometricScore: Math.round(stylometricScore * 100)
+    };
+
+    return { sentence: s, ai, plagiarism, confidence, source, features };
   });
 
   const aiScore = Math.round(sentences.reduce((a, s) => a + s.ai, 0) / (sentences.length || 1));
   const plgSorted = [...sentences].map(s => s.plagiarism).sort((a, b) => a - b);
   const idx95 = Math.floor(0.95 * (plgSorted.length - 1));
   const plagiarism = plgSorted.length ? plgSorted[idx95] : 0;
+  
+  // Confiance globale basée sur la cohérence des résultats
+  const confidenceScores = sentences.map(s => s.confidence);
+  const confidence = Math.round(confidenceScores.reduce((a, b) => a + b, 0) / (confidenceScores.length || 1));
 
-  return { aiScore, plagiarism, sentences };
+  // Analyse des patterns suspects
+  const suspiciousPatterns: string[] = [];
+  const highAISentences = sentences.filter(s => s.ai > 80).length;
+  const highPlagiarismSentences = sentences.filter(s => s.plagiarism > 70).length;
+  const lowCoherenceSentences = sentences.filter(s => s.features && s.features.semanticCoherence < 30).length;
+  
+  if (highAISentences > sentences.length * 0.5) {
+    suspiciousPatterns.push("Forte proportion de phrases générées par IA détectée");
+  }
+  if (highPlagiarismSentences > sentences.length * 0.3) {
+    suspiciousPatterns.push("Plusieurs passages potentiellement plagiés identifiés");
+  }
+  if (lowCoherenceSentences > sentences.length * 0.4) {
+    suspiciousPatterns.push("Transitions abruptes entre les idées détectées");
+  }
+  if (stylometricScore > 0.8) {
+    suspiciousPatterns.push("Style d'écriture très uniforme (suspect)");
+  }
+
+  // Détermination du style global
+  const avgLexicalDiversity = Math.round(
+    sentences.reduce((a, s) => a + (s.features?.lexicalDiversity || 0), 0) / sentences.length
+  );
+  const avgSyntaxComplexity = Math.round(
+    sentences.reduce((a, s) => a + (s.features?.syntacticComplexity || 0), 0) / sentences.length
+  );
+  
+  let overallStyle = "Style académique standard";
+  if (aiScore > 70) {
+    overallStyle = "Style potentiellement généré par IA";
+  } else if (plagiarism > 60) {
+    overallStyle = "Contenu potentiellement plagié";
+  } else if (avgLexicalDiversity < 30 || avgSyntaxComplexity < 25) {
+    overallStyle = "Style simple, possiblement artificiel";
+  } else if (avgLexicalDiversity > 75 && avgSyntaxComplexity > 70) {
+    overallStyle = "Style complexe et varié (probablement humain)";
+  }
+
+  // Recommandations
+  const recommendations: string[] = [];
+  if (aiScore > 50) {
+    recommendations.push("Vérifier l'originalité du contenu avec des outils spécialisés");
+  }
+  if (plagiarism > 40) {
+    recommendations.push("Examiner les sources et citations du document");
+  }
+  if (confidence < 60) {
+    recommendations.push("Analyse nécessite une vérification manuelle approfondie");
+  }
+  if (suspiciousPatterns.length === 0 && aiScore < 30 && plagiarism < 20) {
+    recommendations.push("Le document semble authentique et original");
+  }
+
+  const analysis = {
+    overallStyle,
+    suspiciousPatterns,
+    recommendations
+  };
+
+  return { aiScore, plagiarism, confidence, sentences, analysis };
 }
