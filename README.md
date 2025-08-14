@@ -1,3 +1,20 @@
+# Utilisation en mode application Windows (.exe)
+
+1. Installez les dépendances Electron :
+	```powershell
+	npm install --save-dev electron
+	```
+2. Générez le build Vite :
+	```powershell
+	npm run build
+	```
+3. Lancez l'application Electron :
+	```powershell
+	npx electron .
+	```
+	(ou `npm run electron:dev` si vous utilisez le fichier electron-package.json)
+
+Pour générer un vrai .exe installable, utilisez un packager comme electron-builder (optionnel).
 # AcadCheck — Plagiarism & AI Detection
 
 AcadCheck is a powerful web application that detects plagiarism and AI-written text with detailed reports.

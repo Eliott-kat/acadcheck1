@@ -109,8 +109,7 @@ const Report = () => {
         </div>
 
         <div className="flex gap-3">
-          <Button onClick={handleDownloadPdf} variant="outline">Télécharger le PDF</Button>
-          <Button onClick={() => window.print()} variant="outline">{t('report.exportPdf')}</Button>
+          <Button onClick={handleDownloadPdf} variant="outline">{t('report.exportPdf')}</Button>
           <Button onClick={() => downloadCsv('acadcheck_report.csv', [["Sentence","Plagiarism","AI","Source"], ...report.sentences.map((s: any) => [s.sentence, String(s.plagiarism), String(s.ai), s.source || ''])])} variant="outline">{t('report.exportCsv')}</Button>
         </div>
 
@@ -217,15 +216,6 @@ const Report = () => {
           </section>
         )}
 
-        <section className="p-6 rounded-lg border bg-card shadow-sm">
-          <h3 className="font-semibold mb-3">Exemple de surlignage</h3>
-          <article className="prose max-w-none">
-            <HighlightedText
-              text={"Bonjour, ceci est un exemple de texte. L'algorithme surligne les mots choisis, même avec des ponctuations!"}
-              highlights={["exemple", "surligne", "ponctuations"]}
-            />
-          </article>
-        </section>
       </div>
     </AppLayout>
   );

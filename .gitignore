@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Vite
+.vite
+
+# Supabase
+supabase/.temp/
+supabase/.output/
+
+# Bun
+bun.lockb
+
+# Electron
+build/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -5,7 +5,7 @@ export interface HighlightedTextProps {
   text: string;
   highlights?: string[];
   className?: string; // style par défaut du <mark>
-  groups?: { terms: string[]; className: string }[]; // groupes avec styles spécifiques
+  groups?: { terms: string[]; className: string; score?: number; type?: 'ai'|'plagiarism'|'both' }[]; // groupes avec styles spécifiques
 }
 
 // Échappe les caractères spéciaux d'une chaîne pour l'utiliser dans une RegExp
@@ -39,7 +39,11 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({
     return arr.sort((a, b) => b.term.length - a.term.length);
   }, [highlights, groups, className]);
 
-  const defaultMarkClass = "bg-accent/50 underline decoration-destructive decoration-2 rounded-sm px-0.5";
+  // Coloration dynamique selon le type de score
+  const defaultMarkClass = "bg-accent/50 underline decoration-2 rounded-sm px-0.5";
+  const aiClass = "decoration-blue-500";
+  const plgClass = "decoration-red-500";
+  const bothClass = "decoration-fuchsia-600";
 
   if (!text || tokens.length === 0) {
     return <span>{text}</span>;
@@ -63,7 +67,12 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({
       for (let i = s; i < e; i++) if (used[i]) { overlap = true; break; }
       if (overlap) continue;
       for (let i = s; i < e; i++) used[i] = true;
-      matches.push({ start: s, end: e, text: text.slice(s, e), cls: tok.className });
+  // Ajout dynamique de la classe selon le type
+  let dynClass = tok.className;
+  if (tok.className?.includes('mark-ai') && tok.className?.includes('mark-plagiarism')) dynClass += ' ' + bothClass;
+  else if (tok.className?.includes('mark-ai')) dynClass += ' ' + aiClass;
+  else if (tok.className?.includes('mark-plagiarism')) dynClass += ' ' + plgClass;
+  matches.push({ start: s, end: e, text: text.slice(s, e), cls: dynClass });
     }
   }
 
