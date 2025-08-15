@@ -6,7 +6,7 @@ const dict = {
   fr: {
     meta: {
       title: "AcadCheck | Détection de plagiat et IA",
-      desc: "Analysez vos documents: plagiat Copyleaks, détection de texte IA, rapports détaillés.",
+  desc: "Analysez vos documents: détection de plagiat, détection de texte IA, rapports détaillés.",
     },
     hero: {
       h1: "Détectez plagiat et textes IA, avec précision",
@@ -34,11 +34,12 @@ const dict = {
     },
     report: {
       title: "Rapport d'analyse",
-      plagiarism: "Plagiat",
-      ai: "Score IA",
+  plagiarism: "Plagiat",
+  ai: "Score IA",
+  confidence: "Confiance",
       exportPdf: "Exporter en PDF",
       exportCsv: "Exporter en CSV",
-      copyleaks: "Résultats Copyleaks",
+
       highlights: "Surlignage des phrases détectées",
     },
     admin: { title: "Administration", users: "Utilisateurs", analyses: "Analyses" },
@@ -48,7 +49,7 @@ const dict = {
   en: {
     meta: {
       title: "AcadCheck | Plagiarism & AI Detection",
-      desc: "Analyze documents: Copyleaks plagiarism, AI text detection, detailed reports.",
+  desc: "Analyze documents: plagiarism, AI text detection, detailed reports.",
     },
     hero: {
       h1: "Detect plagiarism and AI-written text, accurately",
@@ -76,11 +77,12 @@ const dict = {
     },
     report: {
       title: "Analysis report",
-      plagiarism: "Plagiarism",
-      ai: "AI Score",
+  plagiarism: "Plagiarism",
+  ai: "AI Score",
+  confidence: "Confidence",
       exportPdf: "Export PDF",
       exportCsv: "Export CSV",
-      copyleaks: "Copyleaks Results",
+
       highlights: "Highlighted detected sentences",
     },
     admin: { title: "Administration", users: "Users", analyses: "Analyses" },

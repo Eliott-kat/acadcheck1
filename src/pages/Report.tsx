@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "react-router-dom";
 import { useI18n } from "@/i18n";
-import HighlightedText from "@/components/HighlightedText";
+// Affichage fidèle : chaque phrase du rapport, surlignée selon le score
 import { DocumentPreview } from "@/components/DocumentPreview";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -22,7 +22,7 @@ function downloadCsv(filename: string, rows: string[][]) {
 const Report = () => {
   const { t } = useI18n();
   const location = useLocation() as { state?: any };
-  const report = location.state?.report || { plagiarism: 0, aiScore: 0, sentences: [], copyleaks: { matches: 0 } };
+  const report = location.state?.report || { plagiarism: 0, aiScore: 0, sentences: [] };
   const text = location.state?.text || '';
   const file: File | undefined = location.state?.file;
 
@@ -96,16 +96,12 @@ const Report = () => {
             <Progress value={report.aiScore} />
           </div>
           <div className="p-6 rounded-lg border bg-card shadow-sm">
-            <h3 className="mb-2 font-semibold">Confiance</h3>
+            <h3 className="mb-2 font-semibold">{t('report.confidence')}</h3>
             <div className="text-3xl font-bold mb-2">{report.confidence || 0}%</div>
             <Progress value={report.confidence || 0} />
             <p className="text-xs text-muted-foreground mt-1">Fiabilité de l'analyse</p>
           </div>
-          <div className="p-6 rounded-lg border bg-card shadow-sm">
-            <h3 className="mb-2 font-semibold">{t('report.copyleaks')}</h3>
-            <div className="text-3xl font-bold mb-2">{report.copyleaks?.matches || 0}</div>
-            <p className="text-sm text-muted-foreground">Nombre d'appariements potentiels</p>
-          </div>
+
         </div>
 
         <div className="flex gap-3">
@@ -125,7 +121,21 @@ const Report = () => {
             <h3 className="font-semibold mb-3">{t('report.highlights')}</h3>
             <div className="prose max-w-none">
               {report.sentences.length ? (
-                <HighlightedText text={text} groups={groups} />
+                <div className="space-y-2">
+                  {report.sentences.map((s: any, idx: number) => {
+                    let color = "";
+                    if (s.ai >= 70 && s.plagiarism >= 50) color = "bg-fuchsia-200 underline decoration-fuchsia-600";
+                    else if (s.ai >= 70) color = "bg-blue-100 underline decoration-blue-500";
+                    else if (s.plagiarism >= 50) color = "bg-red-100 underline decoration-red-500";
+                    else color = "";
+                    return (
+                      <React.Fragment key={idx}>
+                        <span className={`rounded px-1 ${color}`}>{s.sentence}</span>
+                        <br />
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
               ) : (
                 <p className="text-muted-foreground">{text}</p>
               )}
@@ -190,7 +200,7 @@ const Report = () => {
                     <TableHead>Phrase</TableHead>
                     <TableHead className="text-right">Plagiat</TableHead>
                     <TableHead className="text-right">IA</TableHead>
-                    <TableHead className="text-right">Confiance</TableHead>
+                    <TableHead className="text-right">{t('report.confidence')}</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead className="text-right">Diversité</TableHead>
                     <TableHead className="text-right">Complexité</TableHead>

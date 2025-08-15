@@ -55,7 +55,7 @@ const LocalAnalyze = () => {
         corpus: docs.map(d => ({ name: d.name, text: d.text })),
         useML: true 
       });
-      navigate("/report", { state: { report: { ...report, copyleaks: { matches: 0 } }, text } });
+  navigate("/report", { state: { report, text } });
     } finally {
       setLoading(false);
     }

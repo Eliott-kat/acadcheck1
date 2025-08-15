@@ -118,7 +118,7 @@ const onAnalyze = async (e: React.FormEvent) => {
       description: `Score IA: ${report.aiScore}% | Plagiat: ${report.plagiarism}% | Confiance: ${report.confidence}%`
     });
     
-    navigate('/report', { state: { report: { ...report, copyleaks: { matches: 0 } }, text, file: selectedFile } });
+  navigate('/report', { state: { report, text, file: selectedFile } });
   } catch (error) {
     console.error('Erreur analyse:', error);
     toast({
@@ -163,7 +163,7 @@ const onAnalyze = async (e: React.FormEvent) => {
         <section className="p-6 rounded-lg border bg-card shadow-sm">
           <h2 className="font-semibold mb-2">Aide</h2>
           <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-            <li>Les fichiers seront envoyés à une fonction Edge pour Copyleaks / GPTZero.</li>
+            <li>Les fichiers seront envoyés à une fonction Edge pour analyse avancée.</li>
             <li>Le texte collé déclenche une analyse locale 100% hors ligne.</li>
             <li>Historique et rôles à connecter via Supabase.</li>
           </ul>

@@ -34,7 +34,7 @@ const Index = () => {
       <section className="mt-16 grid sm:grid-cols-3 gap-6">
         <article className="p-6 rounded-lg border bg-card shadow-sm">
           <h3 className="font-semibold mb-2">Plagiat</h3>
-          <p className="text-sm text-muted-foreground">Détection via Copyleaks et comparaison interne.</p>
+          <p className="text-sm text-muted-foreground">Détection par comparaison interne.</p>
         </article>
         <article className="p-6 rounded-lg border bg-card shadow-sm">
           <h3 className="font-semibold mb-2">Texte IA</h3>
