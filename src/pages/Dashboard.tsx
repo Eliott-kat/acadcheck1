@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { analyzeText } from "@/lib/localDetector";
 import { toast } from "@/components/ui/use-toast";
 import { fileToText } from "@/lib/fileToText";
-import { DocumentPreview } from "@/components/DocumentPreview";
+import { DocumentViewer } from "@/components/DocumentViewer";
 import { getAllDocuments } from "@/lib/corpusDB";
 
 const Dashboard = () => {
@@ -28,11 +28,9 @@ const Dashboard = () => {
       setPasted(content);
       toast({ title: "Fichier importé", description: `Texte extrait de ${file.name}` });
     } catch (e) {
-      console.error(e);
       toast({ title: "Format non supporté", description: "Importez un .pdf, .docx ou .txt.", variant: "destructive" });
     }
   };
-  // Protect route: redirect to login if not authenticated
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -56,20 +54,17 @@ const onAnalyze = async (e: React.FormEvent) => {
   setLoading(true);
   try {
     const docs = await getAllDocuments();
-    // Utiliser l'API async améliorée avec modèles ML
     const report = await analyzeText(text, { 
       corpus: docs.map(d => ({ name: d.name, text: d.text })),
       useML: true 
     });
     
-    // Enregistrer un résumé de l'analyse pour l'historique (RLS: user_id = auth.uid())
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const uid = session?.user?.id;
       if (uid) {
         let storagePath: string | null = null;
         
-        // Sauvegarder le fichier si présent
         if (selectedFile) {
           const fileName = `${uid}/${Date.now()}_${selectedFile.name}`;
           const { error: uploadError } = await supabase.storage
@@ -79,7 +74,6 @@ const onAnalyze = async (e: React.FormEvent) => {
           if (!uploadError) {
             storagePath = fileName;
           } else {
-            console.warn('Erreur upload fichier:', uploadError);
           }
         }
 
@@ -90,12 +84,10 @@ const onAnalyze = async (e: React.FormEvent) => {
           plagiarism_score: Math.round(report.plagiarism ?? 0),
           document_name: selectedFile?.name ?? null,
           storage_path: storagePath,
-          original_text: text, // Sauvegarder le texte original complet
           language: 'fr',
           status: 'completed'
         }).select().single();
 
-        // Sauvegarder aussi les phrases détaillées pour le rapport
         if (analysis && report.sentences) {
           const sentences = report.sentences.map((sentence, idx) => ({
             analysis_id: analysis.id,
@@ -110,7 +102,6 @@ const onAnalyze = async (e: React.FormEvent) => {
         }
       }
     } catch (err) {
-      console.error('Erreur lors de la sauvegarde de l\'analyse', err);
     }
     
     toast({
@@ -120,7 +111,6 @@ const onAnalyze = async (e: React.FormEvent) => {
     
   navigate('/report', { state: { report, text, file: selectedFile } });
   } catch (error) {
-    console.error('Erreur analyse:', error);
     toast({
       title: "Erreur d'analyse",
       description: "Une erreur est survenue lors de l'analyse",
@@ -153,19 +143,18 @@ const onAnalyze = async (e: React.FormEvent) => {
               <div className="mt-2">
                 <h3 className="text-sm font-medium mb-2">Aperçu du document</h3>
                 <div className="border rounded-md bg-card overflow-hidden">
-                  <DocumentPreview file={selectedFile} />
+                  <DocumentViewer file={selectedFile} mode="full" />
                 </div>
               </div>
             )}
-            <Textarea value={pasted} onChange={e => setPasted(e.target.value)} rows={8} placeholder={t('dashboard.paste')} />
           </form>
         </section>
         <section className="p-6 rounded-lg border bg-card shadow-sm">
-          <h2 className="font-semibold mb-2">Aide</h2>
+          <h2 className="font-semibold mb-2">{t("help.title")}</h2>
           <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-            <li>Les fichiers seront envoyés à une fonction Edge pour analyse avancée.</li>
-            <li>Le texte collé déclenche une analyse locale 100% hors ligne.</li>
-            <li>Historique et rôles à connecter via Supabase.</li>
+            <li>{t("help.edge")}</li>
+            <li>{t("help.local")}</li>
+            <li>{t("help.supabase")}</li>
           </ul>
         </section>
       </div>

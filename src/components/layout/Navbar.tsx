@@ -35,8 +35,9 @@ const Navbar = () => {
             AcadCheck
           </Link>
           <div className="hidden md:flex items-center gap-1">
+            <NavLink to="/" className={navLinkClass}>{t("nav.home")}</NavLink>
             <NavLink to="/dashboard" className={navLinkClass}>{t("nav.dashboard")}</NavLink>
-            <NavLink to="/history" className={navLinkClass}>Historique</NavLink>
+            <NavLink to="/history" className={navLinkClass}>{t("nav.history")}</NavLink>
           </div>
         </div>
         <div className="flex items-center gap-2">

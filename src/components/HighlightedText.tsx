@@ -81,7 +81,11 @@ const HighlightedText: React.FC<HighlightedTextProps> = ({
   for (const m of matches) {
     if (m.start > lastIndex) parts.push(<span key={`t-${lastIndex}`}>{text.slice(lastIndex, m.start)}</span>);
     parts.push(
-      <mark key={`m-${m.start}`} className={cn(defaultMarkClass, m.cls)}>
+      <mark
+        key={`m-${m.start}`}
+        className={cn(defaultMarkClass, m.cls)}
+        data-sentence={encodeURIComponent(m.text)}
+      >
         {m.text}
       </mark>
     );

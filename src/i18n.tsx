@@ -14,7 +14,21 @@ const dict = {
       ctaPrimary: "Commencer maintenant",
       ctaSecondary: "Voir le tableau de bord",
     },
-    nav: { dashboard: "Tableau de bord", admin: "Admin" },
+    nav: { home: "Accueil", dashboard: "Tableau de bord", admin: "Admin", history: "Historique" },
+    help: {
+      title: "Aide",
+      edge: "Les fichiers seront envoyés à une fonction Edge pour analyse avancée.",
+      local: "Le texte collé déclenche une analyse locale 100% hors ligne.",
+      supabase: "Historique et rôles à connecter via Supabase."
+    },
+    home: {
+      plagiarismTitle: "Plagiat",
+      plagiarismDesc: "Détection par comparaison interne.",
+      aiTitle: "Texte IA",
+      aiDesc: "Score de probabilité avec surlignage phrase par phrase.",
+      reportsTitle: "Rapports",
+      reportsDesc: "Rapport détaillé, export PDF/CSV, historique par utilisateur."
+    },
     auth: {
       login: "Connexion",
       register: "Inscription",
@@ -57,7 +71,21 @@ const dict = {
       ctaPrimary: "Get started",
       ctaSecondary: "Open dashboard",
     },
-    nav: { dashboard: "Dashboard", admin: "Admin" },
+    nav: { home: "Home", dashboard: "Dashboard", admin: "Admin", history: "History" },
+    help: {
+      title: "Help",
+      edge: "Files will be sent to an Edge function for advanced analysis.",
+      local: "Pasted text triggers a 100% offline local analysis.",
+      supabase: "History and roles to be connected via Supabase."
+    },
+    home: {
+      plagiarismTitle: "Plagiarism",
+      plagiarismDesc: "Detection by internal comparison.",
+      aiTitle: "AI Text",
+      aiDesc: "Probability score with sentence-by-sentence highlighting.",
+      reportsTitle: "Reports",
+      reportsDesc: "Detailed report, PDF/CSV export, user history."
+    },
     auth: {
       login: "Login",
       register: "Register",
@@ -69,7 +97,7 @@ const dict = {
     },
     dashboard: {
       title: "Submit a document",
-      subtitle: "PDF, DOCX, TXT — or paste text for a quick try",
+  subtitle: "PDF, DOCX, TXT — or paste text for a quick try",
       upload: "Choose a file",
       or: "or",
       analyze: "Analyze",
@@ -98,7 +126,11 @@ type Ctx = { lang: Lang; t: (key: string) => string; toggleLanguage: () => void 
 const I18nContext = createContext<Ctx | undefined>(undefined);
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useState<Lang>(() => (sessionStorage.getItem(STORAGE_KEY) as Lang) || 'fr');
+  const [lang, setLang] = useState<Lang>(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored === 'fr' || stored === 'en') return stored as Lang;
+    return 'en';
+  });
 
   useEffect(() => {
     sessionStorage.setItem(STORAGE_KEY, lang);

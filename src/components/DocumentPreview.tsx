@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Document, Page, pdfjs } from 'react-pdf';
+const pdfjsWorker = new URL('pdfjs-dist/build/pdf.worker.min.js', import.meta.url).toString();
 import { cn } from "@/lib/utils";
 import HighlightedText from "@/components/HighlightedText";
+
+// Utilisation du worker PDF.js via import (plus besoin de fichier public)
 
 export interface HighlightGroup {
   terms: string[];
@@ -11,13 +15,24 @@ export interface DocumentPreviewProps {
   file: File;
   className?: string;
   highlights?: HighlightGroup[];
+  page?: number;
 }
 
-export const DocumentPreview = ({ file, className, highlights }: DocumentPreviewProps) => {
+export const DocumentPreview = ({ file, className, highlights, page }: DocumentPreviewProps) => {
+  const [pdfError, setPdfError] = useState(false);
   const ext = useMemo(() => (file.name.split(".").pop() || "").toLowerCase(), [file]);
   const [txt, setTxt] = useState<string>("");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [numPages, setNumPages] = useState<number>(1);
+  const [pageNumber, setPageNumber] = useState<number>(1);
   const docxContainerRef = useRef<HTMLDivElement>(null);
+  // Scroll automatique à la page demandée (PDF)
+  useEffect(() => {
+    if (ext === "pdf" && page && page !== pageNumber) {
+      setPageNumber(page);
+    }
+    // eslint-disable-next-line
+  }, [page, ext]);
 
   useEffect(() => {
     return () => {
@@ -120,6 +135,7 @@ export const DocumentPreview = ({ file, className, highlights }: DocumentPreview
         setPdfUrl(url);
         setTxt("");
         if (docxContainerRef.current) docxContainerRef.current.innerHTML = "";
+        setPageNumber(1);
         return;
       }
       if (ext === "docx") {
@@ -171,21 +187,56 @@ export const DocumentPreview = ({ file, className, highlights }: DocumentPreview
   }, [file, ext, JSON.stringify(highlights)]);
 
   return (
-    <div className={cn("w-full max-h-[32rem] overflow-auto", className)}>
-      {ext === "pdf" && pdfUrl && (
-        <iframe
-          title="Aperçu PDF"
-          src={pdfUrl}
-          className="w-full h-[32rem] bg-background"
-        />
+    <div className={cn("w-full max-h-[32rem] overflow-auto flex flex-col items-center justify-center", className)}>
+      {ext === "pdf" && pdfUrl && !pdfError && (
+        <>
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={() => setPageNumber(p => Math.max(1, p - 1))} disabled={pageNumber <= 1} className="px-2 py-1 border rounded">&lt;</button>
+            <span>Page {pageNumber} / {numPages}</span>
+            <button onClick={() => setPageNumber(p => Math.min(numPages, p + 1))} disabled={pageNumber >= numPages} className="px-2 py-1 border rounded">&gt;</button>
+          </div>
+          <div className="flex justify-center">
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+              loading={<div className="text-center">Chargement du PDF...</div>}
+              error={() => { setPdfError(true); return <></>; }}
+            >
+              <Page pageNumber={pageNumber} width={600} />
+            </Document>
+          </div>
+        </>
+      )}
+      {ext === "pdf" && pdfUrl && pdfError && (
+        <div className="w-full h-[80vh] flex flex-col items-center justify-center">
+          <div className="text-center text-red-500 mb-2">Impossible d'afficher le PDF avec le lecteur intégré.<br/>Affichage natif du PDF ci-dessous :</div>
+          <iframe
+            src={pdfUrl}
+            title="PDF natif"
+            className="w-full h-full min-h-[600px] border rounded shadow"
+            style={{ minHeight: 600 }}
+          />
+        </div>
       )}
 
       {ext === "docx" && (
-        <div ref={docxContainerRef} className="docx-wrapper p-4" />
+        <div
+          ref={docxContainerRef}
+          className="docx-wrapper p-4 bg-white text-black rounded shadow max-w-3xl mx-auto"
+          style={{
+            fontFamily: 'Calibri, Arial, Helvetica, sans-serif',
+            fontSize: '1.05rem',
+            lineHeight: 1.6,
+            margin: '2rem auto',
+            minHeight: '20rem',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+            border: '1px solid #e5e7eb',
+          }}
+        />
       )}
 
       {ext === "txt" && txt && (
-        <div className="p-4 text-sm leading-relaxed">
+        <div className="p-4 text-base leading-relaxed bg-white text-black rounded shadow max-w-3xl mx-auto" style={{ fontFamily: 'Consolas, monospace', minHeight: '20rem', margin: '2rem auto', border: '1px solid #e5e7eb' }}>
           <HighlightedText text={txt} highlights={[]} groups={highlights} />
         </div>
       )}

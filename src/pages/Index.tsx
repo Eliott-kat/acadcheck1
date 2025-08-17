@@ -33,16 +33,16 @@ const Index = () => {
 
       <section className="mt-16 grid sm:grid-cols-3 gap-6">
         <article className="p-6 rounded-lg border bg-card shadow-sm">
-          <h3 className="font-semibold mb-2">Plagiat</h3>
-          <p className="text-sm text-muted-foreground">Détection par comparaison interne.</p>
+          <h3 className="font-semibold mb-2">{t("home.plagiarismTitle")}</h3>
+          <p className="text-sm text-muted-foreground">{t("home.plagiarismDesc")}</p>
         </article>
         <article className="p-6 rounded-lg border bg-card shadow-sm">
-          <h3 className="font-semibold mb-2">Texte IA</h3>
-          <p className="text-sm text-muted-foreground">Score de probabilité avec surlignage phrase par phrase.</p>
+          <h3 className="font-semibold mb-2">{t("home.aiTitle")}</h3>
+          <p className="text-sm text-muted-foreground">{t("home.aiDesc")}</p>
         </article>
         <article className="p-6 rounded-lg border bg-card shadow-sm">
-          <h3 className="font-semibold mb-2">Rapports</h3>
-          <p className="text-sm text-muted-foreground">Rapport détaillé, export PDF/CSV, historique par utilisateur.</p>
+          <h3 className="font-semibold mb-2">{t("home.reportsTitle")}</h3>
+          <p className="text-sm text-muted-foreground">{t("home.reportsDesc")}</p>
         </article>
       </section>
     </AppLayout>

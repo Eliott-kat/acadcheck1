@@ -1,72 +1,51 @@
 import { Helmet } from "react-helmet-async";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "react-router-dom";
 import { useI18n } from "@/i18n";
-// Affichage fidèle : chaque phrase du rapport, surlignée selon le score
-import { DocumentPreview } from "@/components/DocumentPreview";
+import { DocumentViewer } from "@/components/DocumentViewer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import jsPDF from "jspdf";
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map(r => r.map(v => '"' + v.split('"').join('""') + '"').join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
+import { exportReportToPDF } from "@/lib/exportPdf";
 
 const Report = () => {
   const { t } = useI18n();
-  const location = useLocation() as { state?: any };
+  const location = useLocation();
   const report = location.state?.report || { plagiarism: 0, aiScore: 0, sentences: [] };
   const text = location.state?.text || '';
   const file: File | undefined = location.state?.file;
 
   const contentRef = useRef<HTMLDivElement>(null);
   const isPDF = !!file && ((file.type && file.type.includes('pdf')) || file.name?.toLowerCase().endsWith('.pdf'));
+  const [selectedSentence, setSelectedSentence] = useState<{ sentence: string; page?: number } | null>(null);
+  const [pdfPage, setPdfPage] = useState<number | undefined>(undefined);
 
   const handleDownloadPdf = async () => {
-    const node = contentRef.current;
-    if (!node) return;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    await pdf.html(node, {
-      margin: [10, 10, 10, 10],
-      autoPaging: 'text',
-      html2canvas: { scale: 0.9, useCORS: true },
-      callback: (doc) => doc.save('acadcheck_report.pdf'),
-      x: 0,
-      y: 0,
-      width: pdf.internal.pageSize.getWidth() - 20,
-      windowWidth: node.scrollWidth,
-    } as any);
+    await exportReportToPDF(".grid.gap-6", "acadcheck_report.pdf");
   };
 
-  // Build highlight groups from sentence scores (adaptive thresholds)
   const sentences = report.sentences || [];
   const uniq = (arr: string[]) => Array.from(new Set((arr || []).filter(Boolean)));
 
-  // AI: prefer >=70, else >=50, else top 10% (at least 1)
-  let aiTerms = uniq(sentences.filter((s: any) => s.ai >= 70).map((s: any) => s.sentence));
+  let aiTerms = uniq(sentences.filter((s) => s.ai >= 70).map((s) => s.sentence));
   if (aiTerms.length === 0) {
-    aiTerms = uniq(sentences.filter((s: any) => s.ai >= 50).map((s: any) => s.sentence));
+  aiTerms = uniq(sentences.filter((s) => s.ai >= 50).map((s) => s.sentence));
   }
   if (aiTerms.length === 0 && sentences.length) {
     const topCount = Math.max(1, Math.ceil(sentences.length * 0.1));
-    aiTerms = uniq([...sentences].sort((a: any, b: any) => b.ai - a.ai).slice(0, topCount).map((s: any) => s.sentence));
+  aiTerms = uniq([...sentences].sort((a, b) => b.ai - a.ai).slice(0, topCount).map((s) => s.sentence));
   }
 
-  // Plagiarism: prefer >=50, else >=40, else top 10% (at least 1)
-  let plgTerms = uniq(sentences.filter((s: any) => s.plagiarism >= 50).map((s: any) => s.sentence));
+  let plgTerms = uniq(sentences.filter((s) => s.plagiarism >= 50).map((s) => s.sentence));
   if (plgTerms.length === 0) {
-    plgTerms = uniq(sentences.filter((s: any) => s.plagiarism >= 40).map((s: any) => s.sentence));
+  plgTerms = uniq(sentences.filter((s) => s.plagiarism >= 40).map((s) => s.sentence));
   }
   if (plgTerms.length === 0 && sentences.length) {
     const topCount = Math.max(1, Math.ceil(sentences.length * 0.1));
-    plgTerms = uniq([...sentences].sort((a: any, b: any) => b.plagiarism - a.plagiarism).slice(0, topCount).map((s: any) => s.sentence));
+  plgTerms = uniq([...sentences].sort((a, b) => b.plagiarism - a.plagiarism).slice(0, topCount).map((s) => s.sentence));
   }
   // If overall plagiarism is 0%, do not highlight any plagiarism
   if ((report?.plagiarism ?? 0) <= 0) {
@@ -83,7 +62,7 @@ const Report = () => {
         <title>AcadCheck | {t('report.title')}</title>
         <meta name="description" content="Detailed analysis report" />
       </Helmet>
-      <div ref={contentRef} className="grid gap-6">
+  <div ref={contentRef} className="grid gap-6">
         <div className="grid md:grid-cols-4 gap-6">
           <div className="p-6 rounded-lg border bg-card shadow-sm">
             <h3 className="mb-2 font-semibold">{t('report.plagiarism')}</h3>
@@ -99,133 +78,102 @@ const Report = () => {
             <h3 className="mb-2 font-semibold">{t('report.confidence')}</h3>
             <div className="text-3xl font-bold mb-2">{report.confidence || 0}%</div>
             <Progress value={report.confidence || 0} />
-            <p className="text-xs text-muted-foreground mt-1">Fiabilité de l'analyse</p>
+            <p className="text-xs text-muted-foreground mt-1">Analysis reliability</p>
           </div>
 
         </div>
 
+
         <div className="flex gap-3">
-          <Button onClick={handleDownloadPdf} variant="outline">{t('report.exportPdf')}</Button>
-          <Button onClick={() => downloadCsv('acadcheck_report.csv', [["Sentence","Plagiarism","AI","Source"], ...report.sentences.map((s: any) => [s.sentence, String(s.plagiarism), String(s.ai), s.source || ''])])} variant="outline">{t('report.exportCsv')}</Button>
+          <Button onClick={handleDownloadPdf} variant="outline">Export PDF</Button>
         </div>
 
-        {file && (
-          <section className="p-6 rounded-lg border bg-card shadow-sm">
-            <h3 className="font-semibold mb-3">Document analysé (aperçu fidèle)</h3>
-            <DocumentPreview file={file} highlights={groups} />
-          </section>
-        )}
+
+  {/* Afficher l'aperçu fidèle uniquement pour les PDF */}
+  {file && (
+    <section className="p-6 rounded-lg border bg-card shadow-sm">
+      <h3 className="font-semibold mb-3">{t('report.highlights')}</h3>
+      <DocumentViewer file={file} highlights={groups} mode="full" page={isPDF && pdfPage ? pdfPage : undefined} />
+      {/* Affichage contextuel si la page n'est pas connue */}
+      <Dialog open={isPDF && selectedSentence && !selectedSentence.page} onOpenChange={open => { if (!open) setSelectedSentence(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detected sentence</DialogTitle>
+            <DialogDescription>
+              <span className="text-base font-medium">{selectedSentence?.sentence}</span>
+              <div className="text-xs text-muted-foreground mt-2">Page number not available for this sentence.</div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+      {/* Navigation par page + zone dédiée si la page est connue */}
+      {isPDF && selectedSentence && selectedSentence.page && (
+        <div className="my-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-900 rounded">
+          <div className="font-semibold mb-1">Phrase détectée :</div>
+          <div className="text-base">{selectedSentence.sentence}</div>
+          <div className="text-xs mt-1">Page {selectedSentence.page}</div>
+        </div>
+      )}
+    </section>
+  )}
 
         {(!file || isPDF) && (
           <section className="p-6 rounded-lg border bg-card shadow-sm">
             <h3 className="font-semibold mb-3">{t('report.highlights')}</h3>
             <div className="prose max-w-none">
               {report.sentences.length ? (
-                <div className="space-y-2">
-                  {report.sentences.map((s: any, idx: number) => {
-                    let color = "";
-                    if (s.ai >= 70 && s.plagiarism >= 50) color = "bg-fuchsia-200 underline decoration-fuchsia-600";
-                    else if (s.ai >= 70) color = "bg-blue-100 underline decoration-blue-500";
-                    else if (s.plagiarism >= 50) color = "bg-red-100 underline decoration-red-500";
-                    else color = "";
-                    return (
-                      <React.Fragment key={idx}>
-                        <span className={`rounded px-1 ${color}`}>{s.sentence}</span>
-                        <br />
-                      </React.Fragment>
-                    );
-                  })}
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <Table className="min-w-full text-sm">
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="font-semibold text-gray-700 uppercase tracking-wider">Sentence</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700 uppercase tracking-wider">Plagiarism</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700 uppercase tracking-wider">AI</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700 uppercase tracking-wider">{t('report.confidence')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700 uppercase tracking-wider">Source</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700 uppercase tracking-wider">Complexity</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700 uppercase tracking-wider">Perplexity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {report.sentences
+                        .filter((s: any) => s.plagiarism >= 30 || s.ai >= 50)
+                        .sort((a: any, b: any) => Math.max(b.plagiarism, b.ai) - Math.max(a.plagiarism, a.ai))
+                        .map((s: any, idx: number) => (
+                          <TableRow
+                            key={idx}
+                            className="cursor-pointer hover:bg-primary/10"
+                            onClick={() => {
+                              setSelectedSentence({ sentence: s.sentence, page: s.page });
+                              if (isPDF && s.page) setPdfPage(s.page);
+                              if (!isPDF) {
+                                const el = document.querySelector(`[data-sentence="${encodeURIComponent(s.sentence)}"]`);
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  el.classList.add('ring-2', 'ring-primary');
+                                  setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 1600);
+                                }
+                              }
+                            }}
+                          >
+                            <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
+                            <TableCell className="text-right">{s.plagiarism}%</TableCell>
+                            <TableCell className="text-right">{s.ai}%</TableCell>
+                            <TableCell className="text-right">{s.confidence || 0}%</TableCell>
+                            <TableCell>{s.source || '—'}</TableCell>
+                            <TableCell className="text-right">{s.features?.syntacticComplexity || 0}%</TableCell>
+                            <TableCell className="text-right">{s.features?.perplexity?.toFixed(1) || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
-                <p className="text-muted-foreground">{text}</p>
+                <div className="text-muted-foreground">No sentences found.</div>
               )}
             </div>
           </section>
         )}
-
-        {report.analysis && (
-          <section className="p-6 rounded-lg border bg-card shadow-sm">
-            <h3 className="font-semibold mb-4">Analyse détaillée</h3>
-            <div className="grid gap-4">
-              <div>
-                <h4 className="font-medium mb-2">Style détecté</h4>
-                <p className="text-sm bg-muted/50 p-3 rounded">{report.analysis.overallStyle}</p>
-              </div>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium mb-2">Modèle utilisé</h4>
-                  <p className="text-sm text-muted-foreground">{report.analysis.modelUsed}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2">Temps de traitement</h4>
-                  <p className="text-sm text-muted-foreground">{report.analysis.processingTime}ms</p>
-                </div>
-              </div>
-              
-              {report.analysis.suspiciousPatterns.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-2">Patterns suspects détectés</h4>
-                  <ul className="space-y-1">
-                    {report.analysis.suspiciousPatterns.map((pattern: string, idx: number) => (
-                      <li key={idx} className="text-sm text-orange-600 dark:text-orange-400">
-                        • {pattern}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              <div>
-                <h4 className="font-medium mb-2">Recommandations</h4>
-                <ul className="space-y-1">
-                  {report.analysis.recommendations.map((rec: string, idx: number) => (
-                    <li key={idx} className="text-sm text-muted-foreground">
-                      • {rec}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {report.sentences.length > 0 && (
-          <section className="p-6 rounded-lg border bg-card shadow-sm">
-            <h3 className="font-semibold mb-3">Analyse détaillée par phrase</h3>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Phrase</TableHead>
-                    <TableHead className="text-right">Plagiat</TableHead>
-                    <TableHead className="text-right">IA</TableHead>
-                    <TableHead className="text-right">{t('report.confidence')}</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Diversité</TableHead>
-                    <TableHead className="text-right">Complexité</TableHead>
-                    <TableHead className="text-right">Perplexité</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.sentences.map((s: any, idx: number) => (
-                    <TableRow key={idx}>
-                      <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">{s.sentence}</TableCell>
-                      <TableCell className="text-right">{s.plagiarism}%</TableCell>
-                      <TableCell className="text-right">{s.ai}%</TableCell>
-                      <TableCell className="text-right">{s.confidence || 0}%</TableCell>
-                      <TableCell>{s.source || '—'}</TableCell>
-                      <TableCell className="text-right">{s.features?.lexicalDiversity || 0}%</TableCell>
-                      <TableCell className="text-right">{s.features?.syntacticComplexity || 0}%</TableCell>
-                      <TableCell className="text-right">{s.features?.perplexity?.toFixed(1) || '—'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-        )}
-
       </div>
     </AppLayout>
   );

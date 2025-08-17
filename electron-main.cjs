@@ -10,12 +10,13 @@ function createWindow() {
       contextIsolation: true,
     },
   });
-  const htmlPath = path.join(__dirname, 'dist', 'index.html');
+  const htmlPath = path.join(__dirname, 'index.html');
   const url = 'file://' + htmlPath.replace(/\\/g, '/');
   console.log('Chargement du fichier HTML:', url);
   win.loadURL(url).catch((err) => {
-    win.loadURL('data:text/html,<h2>Erreur : Impossible de charger l\'interface.<br>Vérifiez que le build Vite a bien généré dist/index.html.<br><pre>' + err + '</pre></h2>');
+    win.loadURL('data:text/html,<h2>Erreur : Impossible de charger l\'interface.<br>Vérifiez que le build Vite a bien généré index.html à la racine du package.<br><pre>' + err + '</pre></h2>');
   });
+  win.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);
