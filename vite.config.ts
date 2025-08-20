@@ -5,7 +5,6 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: './',
   server: {
     host: "::",
     port: 3000, // Changé de 8080 à 3000
@@ -15,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     viteStaticCopy({
       targets: [
         {
-          src: "public/vendor/docx-preview.css",
+           src: "public/vendor/docx-preview.css",
           dest: "vendor"
         }
       ]

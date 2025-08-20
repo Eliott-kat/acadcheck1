@@ -1,5 +1,4 @@
 {
-  "main": "electron-main.cjs",
   "description": "AcadCheck détecte le plagiat et les textes générés par IA avec des rapports détaillés.",
   "author": "Eliott-kat <eliott.kat@example.com>",
   "name": "vite_react_shadcn_ts",
@@ -7,30 +6,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "build:dev": "vite build --mode development",
-  "lint": "eslint .",
-  "preview": "vite preview",
-  "electron": "electron electron-main.cjs",
-  "dist": "electron-builder",
-  "build:electron": "electron-builder",
-"postbuild:electron": "xcopy dist\\vendor dist\\win-unpacked\\resources\\app.asar.unpacked\\vendor /E /I /Y && copy dist\\index.html dist\\win-unpacked\\index.html"
-},
-  "build": {
-    "appId": "com.acadcheck.app",
-    "productName": "AcadCheck",
-    "files": [
-      "**/*",
-      "!node_modules/*/{test,__tests__,tests}/**",
-      "!**/*.map"
-    ],
-    "directories": {
-      "buildResources": "public"
-    },
-    "win": {
-      "target": "nsis"
-    }
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -101,8 +84,6 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
-    "electron": "^37.2.6",
-    "electron-builder": "^26.0.12",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -112,6 +93,6 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
-    "vite-plugin-static-copy": "^3.1.1"
+    "vite-plugin-static-copy": "^3.1.1",
+    "@tauri-apps/cli": "^2.0.0"}
   }
-}
